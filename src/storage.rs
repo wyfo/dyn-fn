@@ -15,9 +15,6 @@ use elain::{Align, Alignment};
 pub type DefaultFnStorage = Raw<{ size_of::<usize>() }>;
 #[cfg(feature = "alloc")]
 pub type DefaultFnStorage = Box;
-#[cfg(not(feature = "alloc"))]
-pub type DefaultFutureStorage = Raw<{ 16 * size_of::<usize>() }>;
-#[cfg(feature = "alloc")]
 pub type DefaultFutureStorage = RawOrBox<{ 16 * size_of::<usize>() }>;
 
 pub trait Storage: private::Storage + fmt::Debug {}
@@ -177,21 +174,19 @@ impl Clone for Arc {
 #[cfg(feature = "alloc")]
 impl Storage for Arc {}
 
-#[cfg(feature = "alloc")]
 #[derive(Debug)]
 pub enum RawOrBox<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }>
 where
     Align<ALIGN>: Alignment,
 {
     Raw(Raw<SIZE, ALIGN>),
+    #[cfg(feature = "alloc")]
     Box(Box),
 }
-#[cfg(feature = "alloc")]
 impl<const SIZE: usize, const ALIGN: usize> Storage for RawOrBox<SIZE, ALIGN> where
     Align<ALIGN>: Alignment
 {
 }
-#[cfg(feature = "alloc")]
 impl<const SIZE: usize, const ALIGN: usize> StorageMut for RawOrBox<SIZE, ALIGN> where
     Align<ALIGN>: Alignment
 {
@@ -240,7 +235,6 @@ mod private {
         }
     }
 
-    #[cfg(feature = "alloc")]
     impl<const SIZE: usize, const ALIGN: usize> Storage for super::RawOrBox<SIZE, ALIGN>
     where
         Align<ALIGN>: Alignment,
@@ -249,6 +243,7 @@ mod private {
         // https://github.com/taiki-e/cargo-llvm-cov/issues/394
         #[cfg_attr(coverage_nightly, coverage(off))]
         fn new<T>(data: T) -> (Self, unsafe fn(NonNull<()>), unsafe fn(NonNull<()>, bool)) {
+            #[cfg(feature = "alloc")]
             if size_of::<T>() <= SIZE && align_of::<T>() <= ALIGN {
                 let (storage, drop, drop_once) = unsafe { super::Raw::new_unchecked(data) };
                 (Self::Raw(storage), drop, drop_once)
@@ -256,16 +251,23 @@ mod private {
                 let (storage, drop, drop_once) = super::Box::new_box(alloc::boxed::Box::new(data));
                 (Self::Box(storage), drop, drop_once)
             }
+            #[cfg(not(feature = "alloc"))]
+            {
+                let (storage, drop, drop_once) = super::Raw::new(data);
+                (Self::Raw(storage), drop, drop_once)
+            }
         }
         fn ptr(&self) -> NonNull<()> {
             match self {
                 Self::Raw(s) => s.ptr(),
+                #[cfg(feature = "alloc")]
                 Self::Box(s) => s.ptr(),
             }
         }
         fn ptr_mut(&mut self) -> NonNull<()> {
             match self {
                 Self::Raw(s) => s.ptr_mut(),
+                #[cfg(feature = "alloc")]
                 Self::Box(s) => s.ptr_mut(),
             }
         }
@@ -337,7 +339,6 @@ mod tests {
         check_alignment::<1024>();
     }
 
-    #[cfg(feature = "alloc")]
     #[test]
     fn raw_or_box() {
         fn check_variant<const N: usize>(variant: impl Fn(&super::RawOrBox<8>) -> bool) {
@@ -347,9 +348,12 @@ mod tests {
             assert_eq!(unsafe { storage.ptr::<[u8; N]>().read() }, array)
         }
         check_variant::<4>(|s| matches!(s, super::RawOrBox::Raw(_)));
+        #[cfg(feature = "alloc")]
         check_variant::<64>(|s| matches!(s, super::RawOrBox::Box(_)));
 
+        #[cfg(feature = "alloc")]
         let storage = StorageImpl::<super::RawOrBox<8, 1>>::new(0u64);
+        #[cfg(feature = "alloc")]
         assert!(matches!(storage.inner, super::RawOrBox::Box(_)));
     }
 
