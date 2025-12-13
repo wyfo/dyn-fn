@@ -1,4 +1,4 @@
-#[cfg(all(not(miri), feature = "alloc"))]
+#[cfg(all(not(miri), not(coverage_nightly), feature = "alloc"))]
 #[test]
 fn compilation() {
     let t = trybuild::TestCases::new();
