@@ -1,0 +1,20 @@
+[package]
+name = "dyn-fn"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+
+[features]
+default = ["alloc"]
+alloc = []
+
+[dependencies]
+elain = "0.3"
+higher-kinded-types = "0.3.0"
+
+[dev-dependencies]
+trybuild = "1"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }
+
