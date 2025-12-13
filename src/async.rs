@@ -56,7 +56,11 @@ impl DynFuture for LocalDynFuture {
         storage: &mut Option<Self::FutureStorage<S>>,
     ) -> ReturnOrFuture<'_, Ret, Self> {
         let fut_ptr = storage.insert(StorageImpl::new(fut)).ptr_mut::<F>();
-        let dyn_fut = fut_ptr.as_ptr() as *mut Self::Future<Ret>;
+        let dyn_fut = unsafe {
+            mem::transmute::<*mut dyn Future<Output = Ret>, *mut Self::Future<Ret>>(
+                fut_ptr.as_ptr() as _,
+            )
+        };
         unsafe { ReturnOrFuture::Future(Pin::new_unchecked(&mut *dyn_fut)) }
     }
 }
