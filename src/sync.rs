@@ -3,7 +3,7 @@ use core::{marker::PhantomData, mem::ManuallyDrop, ptr::NonNull};
 use higher_kinded_types::{ForFixed, ForLt};
 
 use crate::{
-    macros::{impl_debug, unsafe_impl_send_sync},
+    macros::{impl_debug, new_impls, unsafe_impl_send_sync},
     storage::{DefaultFnStorage, Storage, StorageImpl, StorageMut, StorageOnceImpl},
 };
 
@@ -25,11 +25,11 @@ pub struct LocalDynFn<
 impl<'capture, Arg: ForLt, Ret: ForLt, FnStorage: Storage>
     LocalDynFn<'capture, Arg, Ret, FnStorage>
 {
-    pub fn new<F: for<'a> Fn(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + 'capture>(
-        f: F,
+    const fn new_impl<F: for<'a> Fn(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + 'capture>(
+        func: StorageImpl<FnStorage>,
     ) -> Self {
         Self {
-            func: StorageImpl::new(f),
+            func,
             call: |func, arg, _| unsafe { func.cast::<F>().as_ref()(arg, PhantomData) },
             _capture: PhantomData,
         }
@@ -39,6 +39,8 @@ impl<'capture, Arg: ForLt, Ret: ForLt, FnStorage: Storage>
         unsafe { (self.call)(self.func.ptr(), arg, PhantomData) }
     }
 }
+
+new_impls!(sync(arc) LocalDynFn, StorageImpl, Storage, for<'a> Fn(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + 'capture);
 
 #[cfg(feature = "alloc")]
 impl<'capture, Arg: ForLt, Ret: ForLt> Clone
@@ -65,18 +67,19 @@ pub struct DynFn<
 unsafe_impl_send_sync!(sync DynFn, Storage);
 
 impl<'capture, Arg: ForLt, Ret: ForLt, FnStorage: Storage> DynFn<'capture, Arg, Ret, FnStorage> {
-    pub fn new<
+    const fn new_impl<
         F: for<'a> Fn(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + Send + Sync + 'capture,
     >(
-        f: F,
+        func: StorageImpl<FnStorage>,
     ) -> Self {
-        Self(LocalDynFn::new(f))
+        Self(LocalDynFn::new_impl::<F>(func))
     }
 
     pub fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
         self.0.call(arg)
     }
 }
+new_impls!(sync(arc) DynFn, StorageImpl, Storage, for<'a> Fn(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + Send + Sync + 'capture);
 
 #[cfg(feature = "alloc")]
 impl<'capture, Arg: ForLt, Ret: ForLt> Clone for DynFn<'capture, Arg, Ret, crate::storage::Arc> {
@@ -101,11 +104,13 @@ pub struct LocalDynFnMut<
 impl<'capture, Arg: ForLt, Ret: ForLt, FnStorage: StorageMut>
     LocalDynFnMut<'capture, Arg, Ret, FnStorage>
 {
-    pub fn new<F: for<'a> FnMut(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + 'capture>(
-        f: F,
+    const fn new_impl<
+        F: for<'a> FnMut(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + 'capture,
+    >(
+        func: StorageImpl<FnStorage>,
     ) -> Self {
         Self {
-            func: StorageImpl::new(f),
+            func,
             call: |func, arg, _| unsafe { func.cast::<F>().as_mut()(arg, PhantomData) },
             _capture: PhantomData,
         }
@@ -115,6 +120,8 @@ impl<'capture, Arg: ForLt, Ret: ForLt, FnStorage: StorageMut>
         unsafe { (self.call)(self.func.ptr_mut(), arg, PhantomData) }
     }
 }
+
+new_impls!(sync LocalDynFnMut, StorageImpl, StorageMut, for<'a> FnMut(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + 'capture);
 
 impl_debug!(sync LocalDynFnMut, StorageMut);
 
@@ -130,18 +137,20 @@ unsafe_impl_send_sync!(sync DynFnMut, StorageMut);
 impl<'capture, Arg: ForLt, Ret: ForLt, FnStorage: StorageMut>
     DynFnMut<'capture, Arg, Ret, FnStorage>
 {
-    pub fn new<
+    const fn new_impl<
         F: for<'a> FnMut(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + Send + Sync + 'capture,
     >(
-        f: F,
+        func: StorageImpl<FnStorage>,
     ) -> Self {
-        Self(LocalDynFnMut::new(f))
+        Self(LocalDynFnMut::new_impl::<F>(func))
     }
 
     pub fn call<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
         self.0.call(arg)
     }
 }
+
+new_impls!(sync DynFnMut, StorageImpl, StorageMut, for<'a> FnMut(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + Send + Sync + 'capture);
 
 impl_debug!(sync DynFnMut.0, StorageMut);
 
@@ -167,11 +176,13 @@ impl<'capture, Arg: ForLt, Ret: ForLt, FnStorage: StorageMut> Drop
 impl<'capture, Arg: ForLt, Ret: ForLt, FnStorage: StorageMut>
     LocalDynFnOnce<'capture, Arg, Ret, FnStorage>
 {
-    pub fn new<F: for<'a> FnOnce(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + 'capture>(
-        f: F,
+    const fn new_impl<
+        F: for<'a> FnOnce(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + 'capture,
+    >(
+        func: StorageOnceImpl<FnStorage>,
     ) -> Self {
         Self {
-            func: ManuallyDrop::new(StorageOnceImpl::new(f)),
+            func: ManuallyDrop::new(func),
             call: Some(|func, arg, _| unsafe { func.cast::<F>().read()(arg, PhantomData) }),
             _capture: PhantomData,
         }
@@ -182,6 +193,8 @@ impl<'capture, Arg: ForLt, Ret: ForLt, FnStorage: StorageMut>
         unsafe { call(self.func.ptr_once(), arg, PhantomData) }
     }
 }
+
+new_impls!(sync LocalDynFnOnce, StorageOnceImpl, StorageMut, for<'a> FnOnce(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + 'capture);
 
 impl_debug!(sync LocalDynFnOnce, StorageMut);
 
@@ -197,17 +210,19 @@ unsafe_impl_send_sync!(sync DynFnOnce, StorageMut);
 impl<'capture, Arg: ForLt, Ret: ForLt, FnStorage: StorageMut>
     DynFnOnce<'capture, Arg, Ret, FnStorage>
 {
-    pub fn new<
+    const fn new_impl<
         F: for<'a> FnOnce(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + Send + Sync + 'capture,
     >(
-        f: F,
+        func: StorageOnceImpl<FnStorage>,
     ) -> Self {
-        Self(LocalDynFnOnce::new(f))
+        Self(LocalDynFnOnce::new_impl::<F>(func))
     }
 
     pub fn call(self, arg: Arg::Of<'_>) -> Ret::Of<'_> {
         self.0.call(arg)
     }
 }
+
+new_impls!(sync DynFnOnce, StorageOnceImpl, StorageMut, for<'a> FnOnce(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + Send + Sync + 'capture);
 
 impl_debug!(sync DynFnOnce.0, StorageMut);

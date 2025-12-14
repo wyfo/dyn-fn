@@ -65,10 +65,11 @@ macro_rules! test {
         #[test]
         fn $name() {
             let mut len = AtomicUsize::new(0);
-           #[allow(unused_mut)]
+            #[allow(unused_mut)]
             let mut callback = $fn::<ForRef<str>, ForFixed<usize>>::new(F(&len));
             assert_eq!(poll_once(callback.call("test")), 4);
             assert_eq!(*len.get_mut(), 4);
+            drop($fn::<ForRef<str>, ForFixed<usize>>::new(F(&len)));
             test!(@ $(($clone))? $fn, new_sync, poll_once);
         }
     };
