@@ -75,7 +75,7 @@ macro_rules! test {
     (@ $(($clone:ident))? $fn:ident, $new:ident, $res:ident $(, $async:tt)?) => {
         let mut len = AtomicUsize::new(0);
         #[allow(unused_mut)]
-        let mut callback = $fn::<ForRef<str>, ForFixed<usize>, test!(storage $($clone)?)>::$new($($async)?|s: &str, _| {
+        let mut callback = $fn::<ForRef<str>, ForFixed<usize>, test!(@ storage $($clone)?)>::$new($($async)?|s: &str, _| {
             len.store(s.len(), Ordering::Relaxed);
             s.len()
         });
@@ -87,8 +87,8 @@ macro_rules! test {
             s.len()
         }));
     };
-    (storage clone) => {CloneStorage};
-    (storage) => {storage::DefaultFnStorage}
+    (@ storage clone) => {CloneStorage};
+    (@ storage) => {storage::DefaultFnStorage}
 }
 
 test!(sync(clone) dyn_fn, DynFn);
