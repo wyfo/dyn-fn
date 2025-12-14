@@ -208,7 +208,7 @@ mod private {
     where
         Align<ALIGN>: Alignment,
     {
-        fn new<T>(data: T) -> (Self, unsafe fn(NonNull<()>), unsafe fn(NonNull<()>, bool)) {
+        fn new<T>(data: T) -> NewStorage<Self> {
             const { assert!(size_of::<T>() <= SIZE) };
             const { assert!(align_of::<T>() <= ALIGN) };
             unsafe { Self::new_unchecked::<T>(data) }
@@ -223,7 +223,7 @@ mod private {
 
     #[cfg(feature = "alloc")]
     impl Storage for super::Box {
-        fn new<T>(data: T) -> (Self, unsafe fn(NonNull<()>), unsafe fn(NonNull<()>, bool)) {
+        fn new<T>(data: T) -> NewStorage<Self> {
             Self::new_box(alloc::boxed::Box::new(data))
         }
         fn ptr(&self) -> NonNull<()> {
@@ -241,7 +241,7 @@ mod private {
         // It prevents 100% coverage, maybe because of
         // https://github.com/taiki-e/cargo-llvm-cov/issues/394
         #[cfg_attr(coverage_nightly, coverage(off))]
-        fn new<T>(data: T) -> (Self, unsafe fn(NonNull<()>), unsafe fn(NonNull<()>, bool)) {
+        fn new<T>(data: T) -> NewStorage<Self> {
             #[cfg(feature = "alloc")]
             if size_of::<T>() <= SIZE && align_of::<T>() <= ALIGN {
                 let (storage, drop, drop_once) = unsafe { super::Raw::new_unchecked(data) };
@@ -274,7 +274,7 @@ mod private {
 
     #[cfg(feature = "alloc")]
     impl Storage for super::Arc {
-        fn new<T>(data: T) -> (Self, unsafe fn(NonNull<()>), unsafe fn(NonNull<()>, bool)) {
+        fn new<T>(data: T) -> NewStorage<Self> {
             Self::new_arc(alloc::sync::Arc::new(data))
         }
         fn ptr(&self) -> NonNull<()> {
