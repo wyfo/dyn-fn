@@ -1,13 +1,22 @@
-error[E0277]: `dyn_fn::sync::DynFnImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, true>` cannot be sent between threads safely
+error[E0277]: `NonNull<()>` cannot be sent between threads safely
  --> tests/compilation/local.rs:7:17
   |
 7 |     assert_send(&f);
-  |     ----------- ^^ `dyn_fn::sync::DynFnImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, true>` cannot be sent between threads safely
+  |     ----------- ^^ `NonNull<()>` cannot be sent between threads safely
   |     |
   |     required by a bound introduced by this call
   |
-  = help: within `dyn_fn::LocalDynFn<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>>`, the trait `Send` is not implemented for `dyn_fn::sync::DynFnImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, true>`
-  = help: the trait `Send` is implemented for `dyn_fn::sync::DynFnImpl<'_, Arg, Ret, FnStorage, false>`
+  = help: within `dyn_fn::LocalDynFn<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>>`, the trait `Send` is not implemented for `NonNull<()>`
+note: required because it appears within the type `dyn_fn::storage::Box`
+ --> src/storage.rs
+  |
+  | pub struct Box(NonNull<()>);
+  |            ^^^
+note: required because it appears within the type `storage::StorageImpl<dyn_fn::storage::Box>`
+ --> src/storage.rs
+  |
+  | pub(crate) struct StorageImpl<S: Storage> {
+  |                   ^^^^^^^^^^^
 note: required because it appears within the type `dyn_fn::LocalDynFn<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>>`
  --> src/sync.rs
   |
@@ -19,16 +28,25 @@ note: required by a bound in `assert_send`
 3 | fn assert_send<T: Send>(_: &T) {}
   |                   ^^^^ required by this bound in `assert_send`
 
-error[E0277]: `dyn_fn::sync::DynFnImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, true>` cannot be sent between threads safely
+error[E0277]: `NonNull<()>` cannot be sent between threads safely
  --> tests/compilation/local.rs:8:17
   |
 8 |     assert_sync(&f);
-  |     ----------- ^^ `dyn_fn::sync::DynFnImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, true>` cannot be sent between threads safely
+  |     ----------- ^^ `NonNull<()>` cannot be sent between threads safely
   |     |
   |     required by a bound introduced by this call
   |
-  = help: within `dyn_fn::LocalDynFn<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>>`, the trait `Send` is not implemented for `dyn_fn::sync::DynFnImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, true>`
-  = help: the trait `Send` is implemented for `dyn_fn::sync::DynFnImpl<'_, Arg, Ret, FnStorage, false>`
+  = help: within `dyn_fn::LocalDynFn<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>>`, the trait `Send` is not implemented for `NonNull<()>`
+note: required because it appears within the type `dyn_fn::storage::Box`
+ --> src/storage.rs
+  |
+  | pub struct Box(NonNull<()>);
+  |            ^^^
+note: required because it appears within the type `storage::StorageImpl<dyn_fn::storage::Box>`
+ --> src/storage.rs
+  |
+  | pub(crate) struct StorageImpl<S: Storage> {
+  |                   ^^^^^^^^^^^
 note: required because it appears within the type `dyn_fn::LocalDynFn<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>>`
  --> src/sync.rs
   |
@@ -40,16 +58,25 @@ note: required by a bound in `assert_sync`
 4 | fn assert_sync<T: Send>(_: &T) {}
   |                   ^^^^ required by this bound in `assert_sync`
 
-error[E0277]: `dyn_fn::sync::DynFnImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, true>` cannot be sent between threads safely
+error[E0277]: `NonNull<()>` cannot be sent between threads safely
   --> tests/compilation/local.rs:12:17
    |
 12 |     assert_send(&f);
-   |     ----------- ^^ `dyn_fn::sync::DynFnImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, true>` cannot be sent between threads safely
+   |     ----------- ^^ `NonNull<()>` cannot be sent between threads safely
    |     |
    |     required by a bound introduced by this call
    |
-   = help: within `dyn_fn::LocalDynFnMut<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>>`, the trait `Send` is not implemented for `dyn_fn::sync::DynFnImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, true>`
-   = help: the trait `Send` is implemented for `dyn_fn::sync::DynFnImpl<'_, Arg, Ret, FnStorage, false>`
+   = help: within `dyn_fn::LocalDynFnMut<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>>`, the trait `Send` is not implemented for `NonNull<()>`
+note: required because it appears within the type `dyn_fn::storage::Box`
+  --> src/storage.rs
+   |
+   | pub struct Box(NonNull<()>);
+   |            ^^^
+note: required because it appears within the type `storage::StorageImpl<dyn_fn::storage::Box>`
+  --> src/storage.rs
+   |
+   | pub(crate) struct StorageImpl<S: Storage> {
+   |                   ^^^^^^^^^^^
 note: required because it appears within the type `dyn_fn::LocalDynFnMut<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>>`
   --> src/sync.rs
    |
@@ -61,16 +88,25 @@ note: required by a bound in `assert_send`
  3 | fn assert_send<T: Send>(_: &T) {}
    |                   ^^^^ required by this bound in `assert_send`
 
-error[E0277]: `dyn_fn::sync::DynFnImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, true>` cannot be sent between threads safely
+error[E0277]: `NonNull<()>` cannot be sent between threads safely
   --> tests/compilation/local.rs:13:17
    |
 13 |     assert_sync(&f);
-   |     ----------- ^^ `dyn_fn::sync::DynFnImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, true>` cannot be sent between threads safely
+   |     ----------- ^^ `NonNull<()>` cannot be sent between threads safely
    |     |
    |     required by a bound introduced by this call
    |
-   = help: within `dyn_fn::LocalDynFnMut<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>>`, the trait `Send` is not implemented for `dyn_fn::sync::DynFnImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, true>`
-   = help: the trait `Send` is implemented for `dyn_fn::sync::DynFnImpl<'_, Arg, Ret, FnStorage, false>`
+   = help: within `dyn_fn::LocalDynFnMut<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>>`, the trait `Send` is not implemented for `NonNull<()>`
+note: required because it appears within the type `dyn_fn::storage::Box`
+  --> src/storage.rs
+   |
+   | pub struct Box(NonNull<()>);
+   |            ^^^
+note: required because it appears within the type `storage::StorageImpl<dyn_fn::storage::Box>`
+  --> src/storage.rs
+   |
+   | pub(crate) struct StorageImpl<S: Storage> {
+   |                   ^^^^^^^^^^^
 note: required because it appears within the type `dyn_fn::LocalDynFnMut<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>>`
   --> src/sync.rs
    |
@@ -82,16 +118,30 @@ note: required by a bound in `assert_sync`
  4 | fn assert_sync<T: Send>(_: &T) {}
    |                   ^^^^ required by this bound in `assert_sync`
 
-error[E0277]: `dyn_fn::sync::DynFnOnceImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, true>` cannot be sent between threads safely
+error[E0277]: `NonNull<()>` cannot be sent between threads safely
   --> tests/compilation/local.rs:17:17
    |
 17 |     assert_send(&f);
-   |     ----------- ^^ `dyn_fn::sync::DynFnOnceImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, true>` cannot be sent between threads safely
+   |     ----------- ^^ `NonNull<()>` cannot be sent between threads safely
    |     |
    |     required by a bound introduced by this call
    |
-   = help: within `dyn_fn::LocalDynFnOnce<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>>`, the trait `Send` is not implemented for `dyn_fn::sync::DynFnOnceImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, true>`
-   = help: the trait `Send` is implemented for `dyn_fn::sync::DynFnOnceImpl<'_, Arg, Ret, FnStorage, false>`
+   = help: within `dyn_fn::LocalDynFnOnce<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>>`, the trait `Send` is not implemented for `NonNull<()>`
+note: required because it appears within the type `dyn_fn::storage::Box`
+  --> src/storage.rs
+   |
+   | pub struct Box(NonNull<()>);
+   |            ^^^
+note: required because it appears within the type `storage::StorageOnceImpl<dyn_fn::storage::Box>`
+  --> src/storage.rs
+   |
+   | pub(crate) struct StorageOnceImpl<S: StorageMut> {
+   |                   ^^^^^^^^^^^^^^^
+note: required because it appears within the type `ManuallyDrop<storage::StorageOnceImpl<dyn_fn::storage::Box>>`
+  --> $RUST/core/src/mem/manually_drop.rs
+   |
+   | pub struct ManuallyDrop<T: ?Sized> {
+   |            ^^^^^^^^^^^^
 note: required because it appears within the type `dyn_fn::LocalDynFnOnce<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>>`
   --> src/sync.rs
    |
@@ -103,16 +153,30 @@ note: required by a bound in `assert_send`
  3 | fn assert_send<T: Send>(_: &T) {}
    |                   ^^^^ required by this bound in `assert_send`
 
-error[E0277]: `dyn_fn::sync::DynFnOnceImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, true>` cannot be sent between threads safely
+error[E0277]: `NonNull<()>` cannot be sent between threads safely
   --> tests/compilation/local.rs:18:17
    |
 18 |     assert_sync(&f);
-   |     ----------- ^^ `dyn_fn::sync::DynFnOnceImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, true>` cannot be sent between threads safely
+   |     ----------- ^^ `NonNull<()>` cannot be sent between threads safely
    |     |
    |     required by a bound introduced by this call
    |
-   = help: within `dyn_fn::LocalDynFnOnce<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>>`, the trait `Send` is not implemented for `dyn_fn::sync::DynFnOnceImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, true>`
-   = help: the trait `Send` is implemented for `dyn_fn::sync::DynFnOnceImpl<'_, Arg, Ret, FnStorage, false>`
+   = help: within `dyn_fn::LocalDynFnOnce<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>>`, the trait `Send` is not implemented for `NonNull<()>`
+note: required because it appears within the type `dyn_fn::storage::Box`
+  --> src/storage.rs
+   |
+   | pub struct Box(NonNull<()>);
+   |            ^^^
+note: required because it appears within the type `storage::StorageOnceImpl<dyn_fn::storage::Box>`
+  --> src/storage.rs
+   |
+   | pub(crate) struct StorageOnceImpl<S: StorageMut> {
+   |                   ^^^^^^^^^^^^^^^
+note: required because it appears within the type `ManuallyDrop<storage::StorageOnceImpl<dyn_fn::storage::Box>>`
+  --> $RUST/core/src/mem/manually_drop.rs
+   |
+   | pub struct ManuallyDrop<T: ?Sized> {
+   |            ^^^^^^^^^^^^
 note: required because it appears within the type `dyn_fn::LocalDynFnOnce<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>>`
   --> src/sync.rs
    |
@@ -124,16 +188,25 @@ note: required by a bound in `assert_sync`
  4 | fn assert_sync<T: Send>(_: &T) {}
    |                   ^^^^ required by this bound in `assert_sync`
 
-error[E0277]: `dyn_fn::r#async::DynAsyncFnImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>, dyn_fn::r#async::LocalDynFuture>` cannot be sent between threads safely
+error[E0277]: `NonNull<()>` cannot be sent between threads safely
   --> tests/compilation/local.rs:22:17
    |
 22 |     assert_send(&f);
-   |     ----------- ^^ `dyn_fn::r#async::DynAsyncFnImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>, dyn_fn::r#async::LocalDynFuture>` cannot be sent between threads safely
+   |     ----------- ^^ `NonNull<()>` cannot be sent between threads safely
    |     |
    |     required by a bound introduced by this call
    |
-   = help: within `dyn_fn::LocalDynAsyncFn<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>`, the trait `Send` is not implemented for `dyn_fn::r#async::DynAsyncFnImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>, dyn_fn::r#async::LocalDynFuture>`
-   = help: the trait `Send` is implemented for `dyn_fn::r#async::DynAsyncFnImpl<'_, Arg, Ret, FnStorage, FutureStorage, dyn_fn::r#async::DynFutureSend>`
+   = help: within `dyn_fn::LocalDynAsyncFn<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>`, the trait `Send` is not implemented for `NonNull<()>`
+note: required because it appears within the type `dyn_fn::storage::Box`
+  --> src/storage.rs
+   |
+   | pub struct Box(NonNull<()>);
+   |            ^^^
+note: required because it appears within the type `storage::StorageImpl<dyn_fn::storage::Box>`
+  --> src/storage.rs
+   |
+   | pub(crate) struct StorageImpl<S: Storage> {
+   |                   ^^^^^^^^^^^
 note: required because it appears within the type `dyn_fn::LocalDynAsyncFn<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>`
   --> src/async.rs
    |
@@ -145,16 +218,25 @@ note: required by a bound in `assert_send`
  3 | fn assert_send<T: Send>(_: &T) {}
    |                   ^^^^ required by this bound in `assert_send`
 
-error[E0277]: `dyn_fn::r#async::DynAsyncFnImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>, dyn_fn::r#async::LocalDynFuture>` cannot be sent between threads safely
+error[E0277]: `NonNull<()>` cannot be sent between threads safely
   --> tests/compilation/local.rs:23:17
    |
 23 |     assert_sync(&f);
-   |     ----------- ^^ `dyn_fn::r#async::DynAsyncFnImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>, dyn_fn::r#async::LocalDynFuture>` cannot be sent between threads safely
+   |     ----------- ^^ `NonNull<()>` cannot be sent between threads safely
    |     |
    |     required by a bound introduced by this call
    |
-   = help: within `dyn_fn::LocalDynAsyncFn<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>`, the trait `Send` is not implemented for `dyn_fn::r#async::DynAsyncFnImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>, dyn_fn::r#async::LocalDynFuture>`
-   = help: the trait `Send` is implemented for `dyn_fn::r#async::DynAsyncFnImpl<'_, Arg, Ret, FnStorage, FutureStorage, dyn_fn::r#async::DynFutureSend>`
+   = help: within `dyn_fn::LocalDynAsyncFn<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>`, the trait `Send` is not implemented for `NonNull<()>`
+note: required because it appears within the type `dyn_fn::storage::Box`
+  --> src/storage.rs
+   |
+   | pub struct Box(NonNull<()>);
+   |            ^^^
+note: required because it appears within the type `storage::StorageImpl<dyn_fn::storage::Box>`
+  --> src/storage.rs
+   |
+   | pub(crate) struct StorageImpl<S: Storage> {
+   |                   ^^^^^^^^^^^
 note: required because it appears within the type `dyn_fn::LocalDynAsyncFn<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>`
   --> src/async.rs
    |
@@ -166,16 +248,25 @@ note: required by a bound in `assert_sync`
  4 | fn assert_sync<T: Send>(_: &T) {}
    |                   ^^^^ required by this bound in `assert_sync`
 
-error[E0277]: `dyn_fn::r#async::DynAsyncFnImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>, dyn_fn::r#async::LocalDynFuture>` cannot be shared between threads safely
+error[E0277]: `NonNull<()>` cannot be shared between threads safely
   --> tests/compilation/local.rs:24:17
    |
 24 |     assert_send(&f.call("test"));
-   |     ----------- ^^^^^^^^^^^^^^^ `dyn_fn::r#async::DynAsyncFnImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>, dyn_fn::r#async::LocalDynFuture>` cannot be shared between threads safely
+   |     ----------- ^^^^^^^^^^^^^^^ `NonNull<()>` cannot be shared between threads safely
    |     |
    |     required by a bound introduced by this call
    |
-   = help: within `dyn_fn::LocalDynAsyncFn<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>`, the trait `Sync` is not implemented for `dyn_fn::r#async::DynAsyncFnImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>, dyn_fn::r#async::LocalDynFuture>`
-   = help: the trait `Sync` is implemented for `dyn_fn::r#async::DynAsyncFnImpl<'_, Arg, Ret, FnStorage, FutureStorage, dyn_fn::r#async::DynFutureSend>`
+   = help: within `dyn_fn::LocalDynAsyncFn<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>`, the trait `Sync` is not implemented for `NonNull<()>`
+note: required because it appears within the type `dyn_fn::storage::Box`
+  --> src/storage.rs
+   |
+   | pub struct Box(NonNull<()>);
+   |            ^^^
+note: required because it appears within the type `storage::StorageImpl<dyn_fn::storage::Box>`
+  --> src/storage.rs
+   |
+   | pub(crate) struct StorageImpl<S: Storage> {
+   |                   ^^^^^^^^^^^
 note: required because it appears within the type `dyn_fn::LocalDynAsyncFn<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>`
   --> src/async.rs
    |
@@ -187,7 +278,9 @@ note: required because it's used within this `async` fn body
    |
    |       pub async fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
    |  ___________________________________________________________________^
-   | |         unsafe { self.0.call(arg).await }
+   | |         let mut future = None;
+   | |         let res = unsafe { (self.call)(self.func.ptr(), arg, &mut future, PhantomData) };
+   | |         res.get().await
    | |     }
    | |_____^
 note: required by a bound in `assert_send`
@@ -233,19 +326,11 @@ note: required because it appears within the type `Option<storage::StorageImpl<R
 note: required because it's used within this `async` fn body
   --> src/async.rs
    |
-   |       pub async unsafe fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-   |  __________________________________________________________________________^
+   |       pub async fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
+   |  ___________________________________________________________________^
    | |         let mut future = None;
    | |         let res = unsafe { (self.call)(self.func.ptr(), arg, &mut future, PhantomData) };
    | |         res.get().await
-   | |     }
-   | |_____^
-note: required because it's used within this `async` fn body
-  --> src/async.rs
-   |
-   |       pub async fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-   |  ___________________________________________________________________^
-   | |         unsafe { self.0.call(arg).await }
    | |     }
    | |_____^
 note: required by a bound in `assert_send`
@@ -296,19 +381,11 @@ note: required because it appears within the type `Option<storage::StorageImpl<R
 note: required because it's used within this `async` fn body
   --> src/async.rs
    |
-   |       pub async unsafe fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-   |  __________________________________________________________________________^
+   |       pub async fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
+   |  ___________________________________________________________________^
    | |         let mut future = None;
    | |         let res = unsafe { (self.call)(self.func.ptr(), arg, &mut future, PhantomData) };
    | |         res.get().await
-   | |     }
-   | |_____^
-note: required because it's used within this `async` fn body
-  --> src/async.rs
-   |
-   |       pub async fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-   |  ___________________________________________________________________^
-   | |         unsafe { self.0.call(arg).await }
    | |     }
    | |_____^
 note: required by a bound in `assert_send`
@@ -317,11 +394,11 @@ note: required by a bound in `assert_send`
  3 | fn assert_send<T: Send>(_: &T) {}
    |                   ^^^^ required by this bound in `assert_send`
 
-error[E0277]: `(dyn Future<Output = &str> + 'static)` cannot be sent between threads safely
+error[E0277]: `dyn Future<Output = &str>` cannot be sent between threads safely
   --> tests/compilation/local.rs:24:17
    |
 24 |     assert_send(&f.call("test"));
-   |     ----------- ^^^^^^^^^^^^^^^ `(dyn Future<Output = &str> + 'static)` cannot be sent between threads safely
+   |     ----------- ^^^^^^^^^^^^^^^ `dyn Future<Output = &str>` cannot be sent between threads safely
    |     |
    |     required by a bound introduced by this call
    |
@@ -330,9 +407,9 @@ error[E0277]: `(dyn Future<Output = &str> + 'static)` cannot be sent between thr
    |     pub async fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
    |     ------------------------------------------------------------- within this `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`
    |
-   = help: within `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`, the trait `Send` is not implemented for `(dyn Future<Output = &str> + 'static)`
-   = note: required because it appears within the type `&mut (dyn Future<Output = &str> + 'static)`
-note: required because it appears within the type `Pin<&mut (dyn Future<Output = &str> + 'static)>`
+   = help: within `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`, the trait `Send` is not implemented for `dyn Future<Output = &str>`
+   = note: required because it appears within the type `&mut dyn Future<Output = &str>`
+note: required because it appears within the type `Pin<&mut dyn Future<Output = &str>>`
   --> $RUST/core/src/pin.rs
    |
    | pub struct Pin<Ptr> {
@@ -351,19 +428,11 @@ note: required because it's used within this `async` fn body
 note: required because it's used within this `async` fn body
   --> src/async.rs
    |
-   |       pub async unsafe fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-   |  __________________________________________________________________________^
+   |       pub async fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
+   |  ___________________________________________________________________^
    | |         let mut future = None;
    | |         let res = unsafe { (self.call)(self.func.ptr(), arg, &mut future, PhantomData) };
    | |         res.get().await
-   | |     }
-   | |_____^
-note: required because it's used within this `async` fn body
-  --> src/async.rs
-   |
-   |       pub async fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-   |  ___________________________________________________________________^
-   | |         unsafe { self.0.call(arg).await }
    | |     }
    | |_____^
 note: required by a bound in `assert_send`
@@ -372,16 +441,25 @@ note: required by a bound in `assert_send`
  3 | fn assert_send<T: Send>(_: &T) {}
    |                   ^^^^ required by this bound in `assert_send`
 
-error[E0277]: `dyn_fn::r#async::DynAsyncFnImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>, dyn_fn::r#async::LocalDynFuture>` cannot be sent between threads safely
+error[E0277]: `NonNull<()>` cannot be sent between threads safely
   --> tests/compilation/local.rs:28:17
    |
 28 |     assert_send(&f);
-   |     ----------- ^^ `dyn_fn::r#async::DynAsyncFnImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>, dyn_fn::r#async::LocalDynFuture>` cannot be sent between threads safely
+   |     ----------- ^^ `NonNull<()>` cannot be sent between threads safely
    |     |
    |     required by a bound introduced by this call
    |
-   = help: within `dyn_fn::LocalDynAsyncFnMut<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>`, the trait `Send` is not implemented for `dyn_fn::r#async::DynAsyncFnImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>, dyn_fn::r#async::LocalDynFuture>`
-   = help: the trait `Send` is implemented for `dyn_fn::r#async::DynAsyncFnImpl<'_, Arg, Ret, FnStorage, FutureStorage, dyn_fn::r#async::DynFutureSend>`
+   = help: within `dyn_fn::LocalDynAsyncFnMut<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>`, the trait `Send` is not implemented for `NonNull<()>`
+note: required because it appears within the type `dyn_fn::storage::Box`
+  --> src/storage.rs
+   |
+   | pub struct Box(NonNull<()>);
+   |            ^^^
+note: required because it appears within the type `storage::StorageImpl<dyn_fn::storage::Box>`
+  --> src/storage.rs
+   |
+   | pub(crate) struct StorageImpl<S: Storage> {
+   |                   ^^^^^^^^^^^
 note: required because it appears within the type `dyn_fn::LocalDynAsyncFnMut<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>`
   --> src/async.rs
    |
@@ -393,16 +471,25 @@ note: required by a bound in `assert_send`
  3 | fn assert_send<T: Send>(_: &T) {}
    |                   ^^^^ required by this bound in `assert_send`
 
-error[E0277]: `dyn_fn::r#async::DynAsyncFnImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>, dyn_fn::r#async::LocalDynFuture>` cannot be sent between threads safely
+error[E0277]: `NonNull<()>` cannot be sent between threads safely
   --> tests/compilation/local.rs:29:17
    |
 29 |     assert_sync(&f);
-   |     ----------- ^^ `dyn_fn::r#async::DynAsyncFnImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>, dyn_fn::r#async::LocalDynFuture>` cannot be sent between threads safely
+   |     ----------- ^^ `NonNull<()>` cannot be sent between threads safely
    |     |
    |     required by a bound introduced by this call
    |
-   = help: within `dyn_fn::LocalDynAsyncFnMut<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>`, the trait `Send` is not implemented for `dyn_fn::r#async::DynAsyncFnImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>, dyn_fn::r#async::LocalDynFuture>`
-   = help: the trait `Send` is implemented for `dyn_fn::r#async::DynAsyncFnImpl<'_, Arg, Ret, FnStorage, FutureStorage, dyn_fn::r#async::DynFutureSend>`
+   = help: within `dyn_fn::LocalDynAsyncFnMut<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>`, the trait `Send` is not implemented for `NonNull<()>`
+note: required because it appears within the type `dyn_fn::storage::Box`
+  --> src/storage.rs
+   |
+   | pub struct Box(NonNull<()>);
+   |            ^^^
+note: required because it appears within the type `storage::StorageImpl<dyn_fn::storage::Box>`
+  --> src/storage.rs
+   |
+   | pub(crate) struct StorageImpl<S: Storage> {
+   |                   ^^^^^^^^^^^
 note: required because it appears within the type `dyn_fn::LocalDynAsyncFnMut<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>`
   --> src/async.rs
    |
@@ -414,11 +501,11 @@ note: required by a bound in `assert_sync`
  4 | fn assert_sync<T: Send>(_: &T) {}
    |                   ^^^^ required by this bound in `assert_sync`
 
-error[E0277]: `dyn_fn::r#async::DynAsyncFnImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>, dyn_fn::r#async::LocalDynFuture>` cannot be sent between threads safely
+error[E0277]: `NonNull<()>` cannot be sent between threads safely
   --> tests/compilation/local.rs:30:17
    |
 30 |     assert_send(&f.call("test"));
-   |     ----------- ^^^^^^^^^^^^^^^ `dyn_fn::r#async::DynAsyncFnImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>, dyn_fn::r#async::LocalDynFuture>` cannot be sent between threads safely
+   |     ----------- ^^^^^^^^^^^^^^^ `NonNull<()>` cannot be sent between threads safely
    |     |
    |     required by a bound introduced by this call
    |
@@ -427,8 +514,17 @@ error[E0277]: `dyn_fn::r#async::DynAsyncFnImpl<'_, dyn_fn::higher_kinded_types::
    |     pub async fn call<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
    |     ----------------------------------------------------------------- within this `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`
    |
-   = help: within `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`, the trait `Send` is not implemented for `dyn_fn::r#async::DynAsyncFnImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>, dyn_fn::r#async::LocalDynFuture>`
-   = help: the trait `Send` is implemented for `dyn_fn::r#async::DynAsyncFnImpl<'_, Arg, Ret, FnStorage, FutureStorage, dyn_fn::r#async::DynFutureSend>`
+   = help: within `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`, the trait `Send` is not implemented for `NonNull<()>`
+note: required because it appears within the type `dyn_fn::storage::Box`
+  --> src/storage.rs
+   |
+   | pub struct Box(NonNull<()>);
+   |            ^^^
+note: required because it appears within the type `storage::StorageImpl<dyn_fn::storage::Box>`
+  --> src/storage.rs
+   |
+   | pub(crate) struct StorageImpl<S: Storage> {
+   |                   ^^^^^^^^^^^
 note: required because it appears within the type `dyn_fn::LocalDynAsyncFnMut<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>`
   --> src/async.rs
    |
@@ -440,65 +536,9 @@ note: required because it's used within this `async` fn body
    |
    |       pub async fn call<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
    |  _______________________________________________________________________^
-   | |         unsafe { self.0.call_mut(arg).await }
-   | |     }
-   | |_____^
-note: required by a bound in `assert_send`
-  --> tests/compilation/local.rs:3:19
-   |
- 3 | fn assert_send<T: Send>(_: &T) {}
-   |                   ^^^^ required by this bound in `assert_send`
-
-error[E0277]: `NonNull<()>` cannot be sent between threads safely
-  --> tests/compilation/local.rs:30:17
-   |
-30 |     assert_send(&f.call("test"));
-   |     ----------- ^^^^^^^^^^^^^^^ `NonNull<()>` cannot be sent between threads safely
-   |     |
-   |     required by a bound introduced by this call
-   |
-  ::: src/async.rs
-   |
-   |     pub async fn call<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-   |     ----------------------------------------------------------------- within this `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`
-   |
-   = help: within `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`, the trait `Send` is not implemented for `NonNull<()>`
-note: required because it appears within the type `dyn_fn::storage::Box`
-  --> src/storage.rs
-   |
-   | pub struct Box(NonNull<()>);
-   |            ^^^
-note: required because it appears within the type `RawOrBox<128, 8>`
-  --> src/storage.rs
-   |
-   | pub enum RawOrBox<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }>
-   |          ^^^^^^^^
-note: required because it appears within the type `storage::StorageImpl<RawOrBox<128, 8>>`
-  --> src/storage.rs
-   |
-   | pub(crate) struct StorageImpl<S: Storage> {
-   |                   ^^^^^^^^^^^
-note: required because it appears within the type `Option<storage::StorageImpl<RawOrBox<128, 8>>>`
-  --> $RUST/core/src/option.rs
-   |
-   | pub enum Option<T> {
-   |          ^^^^^^
-note: required because it's used within this `async` fn body
-  --> src/async.rs
-   |
-   |       pub async unsafe fn call_mut<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-   |  __________________________________________________________________________________^
    | |         let mut future = None;
    | |         let res = unsafe { (self.call)(self.func.ptr_mut(), arg, &mut future, PhantomData) };
    | |         res.get().await
-   | |     }
-   | |_____^
-note: required because it's used within this `async` fn body
-  --> src/async.rs
-   |
-   |       pub async fn call<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-   |  _______________________________________________________________________^
-   | |         unsafe { self.0.call_mut(arg).await }
    | |     }
    | |_____^
 note: required by a bound in `assert_send`
@@ -549,19 +589,11 @@ note: required because it appears within the type `Option<storage::StorageImpl<R
 note: required because it's used within this `async` fn body
   --> src/async.rs
    |
-   |       pub async unsafe fn call_mut<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-   |  __________________________________________________________________________________^
+   |       pub async fn call<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
+   |  _______________________________________________________________________^
    | |         let mut future = None;
    | |         let res = unsafe { (self.call)(self.func.ptr_mut(), arg, &mut future, PhantomData) };
    | |         res.get().await
-   | |     }
-   | |_____^
-note: required because it's used within this `async` fn body
-  --> src/async.rs
-   |
-   |       pub async fn call<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-   |  _______________________________________________________________________^
-   | |         unsafe { self.0.call_mut(arg).await }
    | |     }
    | |_____^
 note: required by a bound in `assert_send`
@@ -570,11 +602,11 @@ note: required by a bound in `assert_send`
  3 | fn assert_send<T: Send>(_: &T) {}
    |                   ^^^^ required by this bound in `assert_send`
 
-error[E0277]: `(dyn Future<Output = &str> + 'static)` cannot be sent between threads safely
+error[E0277]: `dyn Future<Output = &str>` cannot be sent between threads safely
   --> tests/compilation/local.rs:30:17
    |
 30 |     assert_send(&f.call("test"));
-   |     ----------- ^^^^^^^^^^^^^^^ `(dyn Future<Output = &str> + 'static)` cannot be sent between threads safely
+   |     ----------- ^^^^^^^^^^^^^^^ `dyn Future<Output = &str>` cannot be sent between threads safely
    |     |
    |     required by a bound introduced by this call
    |
@@ -583,9 +615,9 @@ error[E0277]: `(dyn Future<Output = &str> + 'static)` cannot be sent between thr
    |     pub async fn call<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
    |     ----------------------------------------------------------------- within this `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`
    |
-   = help: within `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`, the trait `Send` is not implemented for `(dyn Future<Output = &str> + 'static)`
-   = note: required because it appears within the type `&mut (dyn Future<Output = &str> + 'static)`
-note: required because it appears within the type `Pin<&mut (dyn Future<Output = &str> + 'static)>`
+   = help: within `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`, the trait `Send` is not implemented for `dyn Future<Output = &str>`
+   = note: required because it appears within the type `&mut dyn Future<Output = &str>`
+note: required because it appears within the type `Pin<&mut dyn Future<Output = &str>>`
   --> $RUST/core/src/pin.rs
    |
    | pub struct Pin<Ptr> {
@@ -604,19 +636,11 @@ note: required because it's used within this `async` fn body
 note: required because it's used within this `async` fn body
   --> src/async.rs
    |
-   |       pub async unsafe fn call_mut<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-   |  __________________________________________________________________________________^
+   |       pub async fn call<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
+   |  _______________________________________________________________________^
    | |         let mut future = None;
    | |         let res = unsafe { (self.call)(self.func.ptr_mut(), arg, &mut future, PhantomData) };
    | |         res.get().await
-   | |     }
-   | |_____^
-note: required because it's used within this `async` fn body
-  --> src/async.rs
-   |
-   |       pub async fn call<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-   |  _______________________________________________________________________^
-   | |         unsafe { self.0.call_mut(arg).await }
    | |     }
    | |_____^
 note: required by a bound in `assert_send`
@@ -625,16 +649,30 @@ note: required by a bound in `assert_send`
  3 | fn assert_send<T: Send>(_: &T) {}
    |                   ^^^^ required by this bound in `assert_send`
 
-error[E0277]: `dyn_fn::r#async::DynAsyncFnOnceImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>, dyn_fn::r#async::LocalDynFuture>` cannot be sent between threads safely
+error[E0277]: `NonNull<()>` cannot be sent between threads safely
   --> tests/compilation/local.rs:34:17
    |
 34 |     assert_send(&f);
-   |     ----------- ^^ `dyn_fn::r#async::DynAsyncFnOnceImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>, dyn_fn::r#async::LocalDynFuture>` cannot be sent between threads safely
+   |     ----------- ^^ `NonNull<()>` cannot be sent between threads safely
    |     |
    |     required by a bound introduced by this call
    |
-   = help: within `dyn_fn::LocalDynAsyncFnOnce<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>`, the trait `Send` is not implemented for `dyn_fn::r#async::DynAsyncFnOnceImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>, dyn_fn::r#async::LocalDynFuture>`
-   = help: the trait `Send` is implemented for `dyn_fn::r#async::DynAsyncFnOnceImpl<'_, Arg, Ret, FnStorage, FutureStorage, dyn_fn::r#async::DynFutureSend>`
+   = help: within `dyn_fn::LocalDynAsyncFnOnce<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>`, the trait `Send` is not implemented for `NonNull<()>`
+note: required because it appears within the type `dyn_fn::storage::Box`
+  --> src/storage.rs
+   |
+   | pub struct Box(NonNull<()>);
+   |            ^^^
+note: required because it appears within the type `storage::StorageOnceImpl<dyn_fn::storage::Box>`
+  --> src/storage.rs
+   |
+   | pub(crate) struct StorageOnceImpl<S: StorageMut> {
+   |                   ^^^^^^^^^^^^^^^
+note: required because it appears within the type `ManuallyDrop<storage::StorageOnceImpl<dyn_fn::storage::Box>>`
+  --> $RUST/core/src/mem/manually_drop.rs
+   |
+   | pub struct ManuallyDrop<T: ?Sized> {
+   |            ^^^^^^^^^^^^
 note: required because it appears within the type `dyn_fn::LocalDynAsyncFnOnce<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>`
   --> src/async.rs
    |
@@ -646,16 +684,30 @@ note: required by a bound in `assert_send`
  3 | fn assert_send<T: Send>(_: &T) {}
    |                   ^^^^ required by this bound in `assert_send`
 
-error[E0277]: `dyn_fn::r#async::DynAsyncFnOnceImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>, dyn_fn::r#async::LocalDynFuture>` cannot be sent between threads safely
+error[E0277]: `NonNull<()>` cannot be sent between threads safely
   --> tests/compilation/local.rs:35:17
    |
 35 |     assert_sync(&f);
-   |     ----------- ^^ `dyn_fn::r#async::DynAsyncFnOnceImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>, dyn_fn::r#async::LocalDynFuture>` cannot be sent between threads safely
+   |     ----------- ^^ `NonNull<()>` cannot be sent between threads safely
    |     |
    |     required by a bound introduced by this call
    |
-   = help: within `dyn_fn::LocalDynAsyncFnOnce<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>`, the trait `Send` is not implemented for `dyn_fn::r#async::DynAsyncFnOnceImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>, dyn_fn::r#async::LocalDynFuture>`
-   = help: the trait `Send` is implemented for `dyn_fn::r#async::DynAsyncFnOnceImpl<'_, Arg, Ret, FnStorage, FutureStorage, dyn_fn::r#async::DynFutureSend>`
+   = help: within `dyn_fn::LocalDynAsyncFnOnce<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>`, the trait `Send` is not implemented for `NonNull<()>`
+note: required because it appears within the type `dyn_fn::storage::Box`
+  --> src/storage.rs
+   |
+   | pub struct Box(NonNull<()>);
+   |            ^^^
+note: required because it appears within the type `storage::StorageOnceImpl<dyn_fn::storage::Box>`
+  --> src/storage.rs
+   |
+   | pub(crate) struct StorageOnceImpl<S: StorageMut> {
+   |                   ^^^^^^^^^^^^^^^
+note: required because it appears within the type `ManuallyDrop<storage::StorageOnceImpl<dyn_fn::storage::Box>>`
+  --> $RUST/core/src/mem/manually_drop.rs
+   |
+   | pub struct ManuallyDrop<T: ?Sized> {
+   |            ^^^^^^^^^^^^
 note: required because it appears within the type `dyn_fn::LocalDynAsyncFnOnce<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>`
   --> src/async.rs
    |
@@ -667,40 +719,6 @@ note: required by a bound in `assert_sync`
  4 | fn assert_sync<T: Send>(_: &T) {}
    |                   ^^^^ required by this bound in `assert_sync`
 
-error[E0277]: `dyn_fn::r#async::DynAsyncFnOnceImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>, dyn_fn::r#async::LocalDynFuture>` cannot be sent between threads safely
-  --> tests/compilation/local.rs:36:17
-   |
-36 |     assert_send(&f.call("test"));
-   |     ----------- ^^^^^^^^^^^^^^^ `dyn_fn::r#async::DynAsyncFnOnceImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>, dyn_fn::r#async::LocalDynFuture>` cannot be sent between threads safely
-   |     |
-   |     required by a bound introduced by this call
-   |
-  ::: src/async.rs
-   |
-   |     pub async fn call<'a>(self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-   |     ------------------------------------------------------------ within this `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`
-   |
-   = help: within `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`, the trait `Send` is not implemented for `dyn_fn::r#async::DynAsyncFnOnceImpl<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>, dyn_fn::r#async::LocalDynFuture>`
-   = help: the trait `Send` is implemented for `dyn_fn::r#async::DynAsyncFnOnceImpl<'_, Arg, Ret, FnStorage, FutureStorage, dyn_fn::r#async::DynFutureSend>`
-note: required because it appears within the type `dyn_fn::LocalDynAsyncFnOnce<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>`
-  --> src/async.rs
-   |
-   | pub struct LocalDynAsyncFnOnce<
-   |            ^^^^^^^^^^^^^^^^^^^
-note: required because it's used within this `async` fn body
-  --> src/async.rs
-   |
-   |       pub async fn call<'a>(self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-   |  __________________________________________________________________^
-   | |         self.0.call(arg).await
-   | |     }
-   | |_____^
-note: required by a bound in `assert_send`
-  --> tests/compilation/local.rs:3:19
-   |
- 3 | fn assert_send<T: Send>(_: &T) {}
-   |                   ^^^^ required by this bound in `assert_send`
-
 error[E0277]: `NonNull<()>` cannot be sent between threads safely
   --> tests/compilation/local.rs:36:17
    |
@@ -711,8 +729,8 @@ error[E0277]: `NonNull<()>` cannot be sent between threads safely
    |
   ::: src/async.rs
    |
-   |     pub async fn call<'a>(self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-   |     ------------------------------------------------------------ within this `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`
+   |     pub async fn call<'a>(mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
+   |     ---------------------------------------------------------------- within this `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`
    |
    = help: within `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`, the trait `Send` is not implemented for `NonNull<()>`
 note: required because it appears within the type `dyn_fn::storage::Box`
@@ -720,21 +738,21 @@ note: required because it appears within the type `dyn_fn::storage::Box`
    |
    | pub struct Box(NonNull<()>);
    |            ^^^
-note: required because it appears within the type `RawOrBox<128, 8>`
+note: required because it appears within the type `storage::StorageOnceImpl<dyn_fn::storage::Box>`
   --> src/storage.rs
    |
-   | pub enum RawOrBox<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }>
-   |          ^^^^^^^^
-note: required because it appears within the type `storage::StorageImpl<RawOrBox<128, 8>>`
-  --> src/storage.rs
+   | pub(crate) struct StorageOnceImpl<S: StorageMut> {
+   |                   ^^^^^^^^^^^^^^^
+note: required because it appears within the type `ManuallyDrop<storage::StorageOnceImpl<dyn_fn::storage::Box>>`
+  --> $RUST/core/src/mem/manually_drop.rs
    |
-   | pub(crate) struct StorageImpl<S: Storage> {
-   |                   ^^^^^^^^^^^
-note: required because it appears within the type `Option<storage::StorageImpl<RawOrBox<128, 8>>>`
-  --> $RUST/core/src/option.rs
+   | pub struct ManuallyDrop<T: ?Sized> {
+   |            ^^^^^^^^^^^^
+note: required because it appears within the type `dyn_fn::LocalDynAsyncFnOnce<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>`
+  --> src/async.rs
    |
-   | pub enum Option<T> {
-   |          ^^^^^^
+   | pub struct LocalDynAsyncFnOnce<
+   |            ^^^^^^^^^^^^^^^^^^^
 note: required because it's used within this `async` fn body
   --> src/async.rs
    |
@@ -744,14 +762,6 @@ note: required because it's used within this `async` fn body
    | |         let call = unsafe { self.call.take().unwrap_unchecked() };
    | |         let res = unsafe { call(self.func.ptr_once(), arg, &mut future, PhantomData) };
    | |         res.get().await
-   | |     }
-   | |_____^
-note: required because it's used within this `async` fn body
-  --> src/async.rs
-   |
-   |       pub async fn call<'a>(self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-   |  __________________________________________________________________^
-   | |         self.0.call(arg).await
    | |     }
    | |_____^
 note: required by a bound in `assert_send`
@@ -770,8 +780,8 @@ error[E0277]: `*mut ()` cannot be sent between threads safely
    |
   ::: src/async.rs
    |
-   |     pub async fn call<'a>(self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-   |     ------------------------------------------------------------ within this `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`
+   |     pub async fn call<'a>(mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
+   |     ---------------------------------------------------------------- within this `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`
    |
    = help: within `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`, the trait `Send` is not implemented for `*mut ()`
 note: required because it appears within the type `PhantomData<*mut ()>`
@@ -810,36 +820,28 @@ note: required because it's used within this `async` fn body
    | |         res.get().await
    | |     }
    | |_____^
-note: required because it's used within this `async` fn body
-  --> src/async.rs
-   |
-   |       pub async fn call<'a>(self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-   |  __________________________________________________________________^
-   | |         self.0.call(arg).await
-   | |     }
-   | |_____^
 note: required by a bound in `assert_send`
   --> tests/compilation/local.rs:3:19
    |
  3 | fn assert_send<T: Send>(_: &T) {}
    |                   ^^^^ required by this bound in `assert_send`
 
-error[E0277]: `(dyn Future<Output = &str> + 'static)` cannot be sent between threads safely
+error[E0277]: `dyn Future<Output = &str>` cannot be sent between threads safely
   --> tests/compilation/local.rs:36:17
    |
 36 |     assert_send(&f.call("test"));
-   |     ----------- ^^^^^^^^^^^^^^^ `(dyn Future<Output = &str> + 'static)` cannot be sent between threads safely
+   |     ----------- ^^^^^^^^^^^^^^^ `dyn Future<Output = &str>` cannot be sent between threads safely
    |     |
    |     required by a bound introduced by this call
    |
   ::: src/async.rs
    |
-   |     pub async fn call<'a>(self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-   |     ------------------------------------------------------------ within this `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`
+   |     pub async fn call<'a>(mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
+   |     ---------------------------------------------------------------- within this `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`
    |
-   = help: within `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`, the trait `Send` is not implemented for `(dyn Future<Output = &str> + 'static)`
-   = note: required because it appears within the type `&mut (dyn Future<Output = &str> + 'static)`
-note: required because it appears within the type `Pin<&mut (dyn Future<Output = &str> + 'static)>`
+   = help: within `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`, the trait `Send` is not implemented for `dyn Future<Output = &str>`
+   = note: required because it appears within the type `&mut dyn Future<Output = &str>`
+note: required because it appears within the type `Pin<&mut dyn Future<Output = &str>>`
   --> $RUST/core/src/pin.rs
    |
    | pub struct Pin<Ptr> {
@@ -864,14 +866,6 @@ note: required because it's used within this `async` fn body
    | |         let call = unsafe { self.call.take().unwrap_unchecked() };
    | |         let res = unsafe { call(self.func.ptr_once(), arg, &mut future, PhantomData) };
    | |         res.get().await
-   | |     }
-   | |_____^
-note: required because it's used within this `async` fn body
-  --> src/async.rs
-   |
-   |       pub async fn call<'a>(self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-   |  __________________________________________________________________^
-   | |         self.0.call(arg).await
    | |     }
    | |_____^
 note: required by a bound in `assert_send`

@@ -1,12 +1,18 @@
-use core::{marker::PhantomData, mem, mem::ManuallyDrop, pin::Pin, ptr::NonNull};
+use core::{
+    marker::PhantomData,
+    mem,
+    mem::ManuallyDrop,
+    pin::Pin,
+    ptr::NonNull,
+    task::{Context, Poll},
+};
 
 use higher_kinded_types::{ForFixed, ForLt};
 
 use crate::{
-    impl_debug,
+    macros::{impl_debug, unsafe_impl_send_sync},
     storage::{
-        DefaultFnStorage, DefaultFutureStorage, SendWrapper, Storage, StorageImpl, StorageMut,
-        StorageOnceImpl,
+        DefaultFnStorage, DefaultFutureStorage, Storage, StorageImpl, StorageMut, StorageOnceImpl,
     },
 };
 
@@ -22,12 +28,25 @@ pub trait AsyncFnOnceSend<'capture, Arg: ForLt, Ret: ForLt>: Send + Sync + 'capt
     fn call(self, arg: Arg::Of<'_>) -> impl Future<Output = Ret::Of<'_>> + Send;
 }
 
-enum ReturnOrFuture<'a, Ret, Fut: DynFuture> {
+enum ReturnOrFuture<'a, Ret> {
     Return(Ret),
-    Future(Pin<&'a mut Fut::Future<Ret>>),
+    Future(Pin<&'a mut dyn Future<Output = Ret>>),
 }
 
-impl<Ret, Fut: DynFuture> ReturnOrFuture<'_, Ret, Fut> {
+impl<'a, Ret> ReturnOrFuture<'a, Ret> {
+    unsafe fn store_future<F: Future<Output = Ret>, S: StorageMut>(
+        fut: F,
+        storage: &'a mut Option<StorageImpl<S>>,
+    ) -> Self {
+        let mut fut_ptr = storage.insert(StorageImpl::new(fut)).ptr_mut::<F>();
+        unsafe {
+            ReturnOrFuture::Future(Pin::new_unchecked(mem::transmute::<
+                &mut dyn Future<Output = Ret>,
+                &mut dyn Future<Output = Ret>,
+            >(fut_ptr.as_mut() as _)))
+        }
+    }
+
     async fn get(self) -> Ret {
         match self {
             Self::Return(ret) => ret,
@@ -36,120 +55,57 @@ impl<Ret, Fut: DynFuture> ReturnOrFuture<'_, Ret, Fut> {
     }
 }
 
-struct LocalDynFuture;
-struct DynFutureSend;
-
-trait DynFuture: Sized {
-    type Future<Output>: Future<Output = Output> + ?Sized;
-    type FutureStorage<S: StorageMut>;
-    unsafe fn store_future<Ret, F: Future<Output = Ret>, S: StorageMut>(
-        fut: F,
-        storage: &mut Option<Self::FutureStorage<S>>,
-    ) -> ReturnOrFuture<'_, Ret, Self>;
-}
-impl DynFuture for LocalDynFuture {
-    type Future<Output> = dyn Future<Output = Output>;
-    type FutureStorage<S: StorageMut> = StorageImpl<S>;
-
-    unsafe fn store_future<Ret, F: Future<Output = Ret>, S: StorageMut>(
-        fut: F,
-        storage: &mut Option<Self::FutureStorage<S>>,
-    ) -> ReturnOrFuture<'_, Ret, Self> {
-        let fut_ptr = storage.insert(StorageImpl::new(fut)).ptr_mut::<F>();
-        let dyn_fut = unsafe {
-            mem::transmute::<*mut dyn Future<Output = Ret>, *mut Self::Future<Ret>>(
-                fut_ptr.as_ptr() as _,
-            )
-        };
-        unsafe { ReturnOrFuture::Future(Pin::new_unchecked(&mut *dyn_fut)) }
-    }
-}
-impl DynFuture for DynFutureSend {
-    type Future<Output> = dyn Future<Output = Output> + Send;
-    type FutureStorage<S: StorageMut> = SendWrapper<StorageImpl<S>>;
-    unsafe fn store_future<Ret, F: Future<Output = Ret>, S: StorageMut>(
-        fut: F,
-        storage: &mut Option<Self::FutureStorage<S>>,
-    ) -> ReturnOrFuture<'_, Ret, Self> {
-        let fut_ptr = storage
-            .insert(unsafe { SendWrapper::new(StorageImpl::new(fut)) })
-            .ptr_mut::<F>();
-        let dyn_fut = unsafe {
-            mem::transmute::<*mut dyn Future<Output = Ret>, *mut Self::Future<Ret>>(
-                fut_ptr.as_ptr() as _,
-            )
-        };
-        unsafe { ReturnOrFuture::Future(Pin::new_unchecked(&mut *dyn_fut)) }
-    }
-}
-
 #[expect(type_alias_bounds)]
-type CallFn<Arg: ForLt, Ret: ForLt, FutureStorage: StorageMut, Fut: DynFuture> =
+type CallFn<Arg: ForLt, Ret: ForLt, FutureStorage: StorageMut> =
     for<'a, 'b> unsafe fn(
         NonNull<()>,
         Arg::Of<'a>,
-        &'b mut Option<Fut::FutureStorage<FutureStorage>>,
+        &'b mut Option<StorageImpl<FutureStorage>>,
         PhantomData<&'a ()>,
-    ) -> ReturnOrFuture<'b, Ret::Of<'a>, Fut>;
+    ) -> ReturnOrFuture<'b, Ret::Of<'a>>;
 
-struct DynAsyncFnImpl<
+struct SendFuture<F>(F);
+impl<F> SendFuture<F> {
+    unsafe fn new(future: F) -> Self {
+        Self(future)
+    }
+}
+unsafe impl<F> Send for SendFuture<F> {}
+impl<F: Future> Future for SendFuture<F> {
+    type Output = F::Output;
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        unsafe { self.map_unchecked_mut(|this| &mut this.0) }.poll(cx)
+    }
+}
+
+pub struct LocalDynAsyncFn<
     'capture,
     Arg: ForLt,
-    Ret: ForLt,
-    FnStorage: Storage,
-    FutureStorage: StorageMut,
-    Fut: DynFuture,
+    Ret: ForLt = ForFixed<()>,
+    FnStorage: Storage = DefaultFnStorage,
+    FutureStorage: StorageMut = DefaultFutureStorage,
 > {
     func: StorageImpl<FnStorage>,
-    call: CallFn<Arg, Ret, FutureStorage, Fut>,
+    call: CallFn<Arg, Ret, FutureStorage>,
     _capture: PhantomData<&'capture ()>,
 }
 
-unsafe impl<'capture, Arg: ForLt, Ret: ForLt, FnStorage: Storage, FutureStorage: StorageMut> Send
-    for DynAsyncFnImpl<'capture, Arg, Ret, FnStorage, FutureStorage, DynFutureSend>
+impl<'capture, Arg: ForLt, Ret: ForLt, FnStorage: Storage, FutureStorage: StorageMut>
+    LocalDynAsyncFn<'capture, Arg, Ret, FnStorage, FutureStorage>
 {
-}
-unsafe impl<'capture, Arg: ForLt, Ret: ForLt, FnStorage: Storage, FutureStorage: StorageMut> Sync
-    for DynAsyncFnImpl<'capture, Arg, Ret, FnStorage, FutureStorage, DynFutureSend>
-{
-}
-
-impl<
-    'capture,
-    Arg: ForLt,
-    Ret: ForLt,
-    FnStorage: Storage,
-    FutureStorage: StorageMut,
-    Fut: DynFuture,
-> DynAsyncFnImpl<'capture, Arg, Ret, FnStorage, FutureStorage, Fut>
-{
-    fn new<F: for<'a> AsyncFn(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + 'capture>(
+    pub fn new<F: for<'a> AsyncFn(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + 'capture>(
         f: F,
     ) -> Self {
         Self {
             func: StorageImpl::new(f),
             call: |func, arg, fut, _| unsafe {
-                Fut::store_future(func.cast::<F>().as_ref()(arg, PhantomData), fut)
+                ReturnOrFuture::store_future(func.cast::<F>().as_ref()(arg, PhantomData), fut)
             },
             _capture: PhantomData,
         }
     }
 
-    fn new_mut<
-        F: for<'a> AsyncFnMut(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + 'capture,
-    >(
-        f: F,
-    ) -> Self {
-        Self {
-            func: StorageImpl::new(f),
-            call: |func, arg, fut, _| unsafe {
-                Fut::store_future(func.cast::<F>().as_mut()(arg, PhantomData), fut)
-            },
-            _capture: PhantomData,
-        }
-    }
-
-    fn new_sync<F: for<'a> Fn(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + 'capture>(
+    pub fn new_sync<F: for<'a> Fn(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + 'capture>(
         f: F,
     ) -> Self {
         Self {
@@ -161,7 +117,106 @@ impl<
         }
     }
 
-    fn new_mut_sync<
+    pub async fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
+        let mut future = None;
+        let res = unsafe { (self.call)(self.func.ptr(), arg, &mut future, PhantomData) };
+        res.get().await
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl<'capture, Arg: ForLt, Ret: ForLt, FutureStorage: StorageMut> Clone
+    for LocalDynAsyncFn<'capture, Arg, Ret, crate::storage::Arc, FutureStorage>
+{
+    fn clone(&self) -> Self {
+        Self {
+            func: self.func.clone(),
+            call: self.call,
+            _capture: PhantomData,
+        }
+    }
+}
+
+impl_debug!(async LocalDynAsyncFn, Storage);
+
+pub struct DynAsyncFn<
+    'capture,
+    Arg: ForLt,
+    Ret: ForLt = ForFixed<()>,
+    FnStorage: Storage = DefaultFnStorage,
+    FutureStorage: StorageMut = DefaultFutureStorage,
+>(LocalDynAsyncFn<'capture, Arg, Ret, FnStorage, FutureStorage>);
+
+// SAFETY: the object is initialized with a `Send + Sync` function
+unsafe_impl_send_sync!(async DynAsyncFn, Storage);
+
+impl<'capture, Arg: ForLt, Ret: ForLt, FnStorage: Storage, FutureStorage: StorageMut>
+    DynAsyncFn<'capture, Arg, Ret, FnStorage, FutureStorage>
+{
+    pub fn new<F: AsyncFnSend<'capture, Arg, Ret>>(f: F) -> Self {
+        Self(LocalDynAsyncFn {
+            func: StorageImpl::new(f),
+            call: |func, arg, fut, _| unsafe {
+                ReturnOrFuture::store_future(func.cast::<F>().as_ref().call(arg), fut)
+            },
+            _capture: PhantomData,
+        })
+    }
+
+    pub fn new_sync<
+        F: for<'a> Fn(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + Send + Sync + 'capture,
+    >(
+        f: F,
+    ) -> Self {
+        Self(LocalDynAsyncFn::new_sync(f))
+    }
+
+    pub async fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
+        unsafe { SendFuture::new(self.0.call(arg)).await }
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl<'capture, Arg: ForLt, Ret: ForLt, FutureStorage: StorageMut> Clone
+    for DynAsyncFn<'capture, Arg, Ret, crate::storage::Arc, FutureStorage>
+{
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
+impl_debug!(async DynAsyncFn.0, Storage);
+
+pub struct LocalDynAsyncFnMut<
+    'capture,
+    Arg: ForLt,
+    Ret: ForLt = ForFixed<()>,
+    FnStorage: StorageMut = DefaultFnStorage,
+    FutureStorage: StorageMut = DefaultFutureStorage,
+> {
+    func: StorageImpl<FnStorage>,
+    call: CallFn<Arg, Ret, FutureStorage>,
+    _capture: PhantomData<&'capture ()>,
+}
+
+impl<'capture, Arg: ForLt, Ret: ForLt, FnStorage: StorageMut, FutureStorage: StorageMut>
+    LocalDynAsyncFnMut<'capture, Arg, Ret, FnStorage, FutureStorage>
+{
+    pub fn new<
+        F: for<'a> AsyncFnMut(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + 'capture,
+    >(
+        f: F,
+    ) -> Self {
+        Self {
+            func: StorageImpl::new(f),
+            call: |func, arg, fut, _| unsafe {
+                ReturnOrFuture::store_future(func.cast::<F>().as_mut()(arg, PhantomData), fut)
+            },
+            _capture: PhantomData,
+        }
+    }
+
+    pub fn new_sync<
         F: for<'a> FnMut(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + 'capture,
     >(
         f: F,
@@ -175,104 +230,14 @@ impl<
         }
     }
 
-    pub async unsafe fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-        let mut future = None;
-        let res = unsafe { (self.call)(self.func.ptr(), arg, &mut future, PhantomData) };
-        res.get().await
-    }
-
-    pub async unsafe fn call_mut<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
+    pub async fn call<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
         let mut future = None;
         let res = unsafe { (self.call)(self.func.ptr_mut(), arg, &mut future, PhantomData) };
         res.get().await
     }
 }
 
-pub struct DynAsyncFn<
-    'capture,
-    Arg: ForLt,
-    Ret: ForLt = ForFixed<()>,
-    FnStorage: Storage = DefaultFnStorage,
-    FutureStorage: StorageMut = DefaultFutureStorage,
->(DynAsyncFnImpl<'capture, Arg, Ret, FnStorage, FutureStorage, DynFutureSend>);
-
-impl<'capture, Arg: ForLt, Ret: ForLt, FnStorage: Storage, FutureStorage: StorageMut>
-    DynAsyncFn<'capture, Arg, Ret, FnStorage, FutureStorage>
-{
-    pub fn new<F: AsyncFnSend<'capture, Arg, Ret>>(f: F) -> Self {
-        Self(DynAsyncFnImpl::new(async move |arg, _| f.call(arg).await))
-    }
-
-    pub fn new_sync<
-        F: for<'a> Fn(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + Send + Sync + 'capture,
-    >(
-        f: F,
-    ) -> Self {
-        Self(DynAsyncFnImpl::new_sync(f))
-    }
-
-    pub async fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-        unsafe { self.0.call(arg).await }
-    }
-}
-
-#[cfg(feature = "alloc")]
-impl<'capture, Arg: ForLt, Ret: ForLt, FutureStorage: StorageMut> Clone
-    for DynAsyncFn<'capture, Arg, Ret, crate::storage::Arc, FutureStorage>
-{
-    fn clone(&self) -> Self {
-        Self(DynAsyncFnImpl {
-            func: self.0.func.clone(),
-            call: self.0.call,
-            _capture: PhantomData,
-        })
-    }
-}
-
-impl_debug!(async DynAsyncFn, Storage);
-
-pub struct LocalDynAsyncFn<
-    'capture,
-    Arg: ForLt,
-    Ret: ForLt = ForFixed<()>,
-    FnStorage: Storage = DefaultFnStorage,
-    FutureStorage: StorageMut = DefaultFutureStorage,
->(DynAsyncFnImpl<'capture, Arg, Ret, FnStorage, FutureStorage, LocalDynFuture>);
-
-impl<'capture, Arg: ForLt, Ret: ForLt, FnStorage: Storage, FutureStorage: StorageMut>
-    LocalDynAsyncFn<'capture, Arg, Ret, FnStorage, FutureStorage>
-{
-    pub fn new<F: for<'a> AsyncFn(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + 'capture>(
-        f: F,
-    ) -> Self {
-        Self(DynAsyncFnImpl::new(f))
-    }
-
-    pub fn new_sync<F: for<'a> Fn(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + 'capture>(
-        f: F,
-    ) -> Self {
-        Self(DynAsyncFnImpl::new_sync(f))
-    }
-
-    pub async fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-        unsafe { self.0.call(arg).await }
-    }
-}
-
-#[cfg(feature = "alloc")]
-impl<'capture, Arg: ForLt, Ret: ForLt, FutureStorage: StorageMut> Clone
-    for LocalDynAsyncFn<'capture, Arg, Ret, crate::storage::Arc, FutureStorage>
-{
-    fn clone(&self) -> Self {
-        Self(DynAsyncFnImpl {
-            func: self.0.func.clone(),
-            call: self.0.call,
-            _capture: PhantomData,
-        })
-    }
-}
-
-impl_debug!(async LocalDynAsyncFn, Storage);
+impl_debug!(async LocalDynAsyncFnMut, StorageMut);
 
 pub struct DynAsyncFnMut<
     'capture,
@@ -280,15 +245,21 @@ pub struct DynAsyncFnMut<
     Ret: ForLt = ForFixed<()>,
     FnStorage: StorageMut = DefaultFnStorage,
     FutureStorage: StorageMut = DefaultFutureStorage,
->(DynAsyncFnImpl<'capture, Arg, Ret, FnStorage, FutureStorage, DynFutureSend>);
+>(LocalDynAsyncFnMut<'capture, Arg, Ret, FnStorage, FutureStorage>);
+
+unsafe_impl_send_sync!(async DynAsyncFnMut, StorageMut);
 
 impl<'capture, Arg: ForLt, Ret: ForLt, FnStorage: StorageMut, FutureStorage: StorageMut>
     DynAsyncFnMut<'capture, Arg, Ret, FnStorage, FutureStorage>
 {
-    pub fn new<F: AsyncFnMutSend<'capture, Arg, Ret>>(mut f: F) -> Self {
-        Self(DynAsyncFnImpl::new_mut(async move |arg, _| {
-            f.call(arg).await
-        }))
+    pub fn new<F: AsyncFnMutSend<'capture, Arg, Ret>>(f: F) -> Self {
+        Self(LocalDynAsyncFnMut {
+            func: StorageImpl::new(f),
+            call: |func, arg, fut, _| unsafe {
+                ReturnOrFuture::store_future(func.cast::<F>().as_mut().call(arg), fut)
+            },
+            _capture: PhantomData,
+        })
     }
 
     pub fn new_sync<
@@ -296,108 +267,56 @@ impl<'capture, Arg: ForLt, Ret: ForLt, FnStorage: StorageMut, FutureStorage: Sto
     >(
         f: F,
     ) -> Self {
-        Self(DynAsyncFnImpl::new_mut_sync(f))
+        Self(LocalDynAsyncFnMut::new_sync(f))
     }
 
     pub async fn call<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-        unsafe { self.0.call_mut(arg).await }
+        SendFuture(self.0.call(arg)).await
     }
 }
 
-impl_debug!(async DynAsyncFnMut, StorageMut);
+impl_debug!(async DynAsyncFnMut.0, StorageMut);
 
-pub struct LocalDynAsyncFnMut<
+pub struct LocalDynAsyncFnOnce<
     'capture,
     Arg: ForLt,
     Ret: ForLt = ForFixed<()>,
     FnStorage: StorageMut = DefaultFnStorage,
     FutureStorage: StorageMut = DefaultFutureStorage,
->(DynAsyncFnImpl<'capture, Arg, Ret, FnStorage, FutureStorage, LocalDynFuture>);
-
-impl<'capture, Arg: ForLt, Ret: ForLt, FnStorage: StorageMut, FutureStorage: StorageMut>
-    LocalDynAsyncFnMut<'capture, Arg, Ret, FnStorage, FutureStorage>
-{
-    pub fn new<
-        F: for<'a> AsyncFnMut(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + 'capture,
-    >(
-        f: F,
-    ) -> Self {
-        Self(DynAsyncFnImpl::new_mut(f))
-    }
-
-    pub fn new_sync<
-        F: for<'a> FnMut(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + 'capture,
-    >(
-        f: F,
-    ) -> Self {
-        Self(DynAsyncFnImpl::new_mut_sync(f))
-    }
-
-    pub async fn call<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-        unsafe { self.0.call_mut(arg).await }
-    }
-}
-
-impl_debug!(async LocalDynAsyncFnMut, StorageMut);
-
-struct DynAsyncFnOnceImpl<
-    'capture,
-    Arg: ForLt,
-    Ret: ForLt,
-    FnStorage: StorageMut,
-    FutureStorage: StorageMut,
-    Fut: DynFuture,
 > {
     func: ManuallyDrop<StorageOnceImpl<FnStorage>>,
-    call: Option<CallFn<Arg, Ret, FutureStorage, Fut>>,
+    call: Option<CallFn<Arg, Ret, FutureStorage>>,
     _capture: PhantomData<&'capture ()>,
 }
 
-unsafe impl<'capture, Arg: ForLt, Ret: ForLt, FnStorage: StorageMut, FutureStorage: StorageMut> Send
-    for DynAsyncFnOnceImpl<'capture, Arg, Ret, FnStorage, FutureStorage, DynFutureSend>
-{
-}
-unsafe impl<'capture, Arg: ForLt, Ret: ForLt, FnStorage: StorageMut, FutureStorage: StorageMut> Sync
-    for DynAsyncFnOnceImpl<'capture, Arg, Ret, FnStorage, FutureStorage, DynFutureSend>
-{
-}
-
-impl<
-    'capture,
-    Arg: ForLt,
-    Ret: ForLt,
-    FnStorage: StorageMut,
-    FutureStorage: StorageMut,
-    Fut: DynFuture,
-> Drop for DynAsyncFnOnceImpl<'capture, Arg, Ret, FnStorage, FutureStorage, Fut>
+impl<'capture, Arg: ForLt, Ret: ForLt, FnStorage: StorageMut, FutureStorage: StorageMut> Drop
+    for LocalDynAsyncFnOnce<'capture, Arg, Ret, FnStorage, FutureStorage>
 {
     fn drop(&mut self) {
         unsafe { ManuallyDrop::take(&mut self.func) }.drop(self.call.is_none());
     }
 }
 
-impl<
-    'capture,
-    Arg: ForLt,
-    Ret: ForLt,
-    FnStorage: StorageMut,
-    FutureStorage: StorageMut,
-    Fut: DynFuture,
-> DynAsyncFnOnceImpl<'capture, Arg, Ret, FnStorage, FutureStorage, Fut>
+impl<'capture, Arg: ForLt, Ret: ForLt, FnStorage: StorageMut, FutureStorage: StorageMut>
+    LocalDynAsyncFnOnce<'capture, Arg, Ret, FnStorage, FutureStorage>
 {
-    fn new<F: for<'a> AsyncFnOnce(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + 'capture>(
+    pub fn new<
+        F: for<'a> AsyncFnOnce(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + 'capture,
+    >(
         f: F,
     ) -> Self {
         Self {
             func: ManuallyDrop::new(StorageOnceImpl::new(f)),
             call: Some(|func, arg, fut, _| unsafe {
-                Fut::store_future(func.cast::<F>().read()(arg, PhantomData), fut)
+                ReturnOrFuture::store_future(func.cast::<F>().read()(arg, PhantomData), fut)
             }),
             _capture: PhantomData,
         }
     }
 
-    fn new_sync<F: for<'a> FnOnce(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + 'capture>(
+    pub fn new_sync<
+        F: for<'a> FnOnce(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + 'capture,
+    >(
         f: F,
     ) -> Self {
         Self {
@@ -417,21 +336,29 @@ impl<
     }
 }
 
+impl_debug!(async LocalDynAsyncFnOnce, StorageMut);
+
 pub struct DynAsyncFnOnce<
     'capture,
     Arg: ForLt,
     Ret: ForLt = ForFixed<()>,
     FnStorage: StorageMut = DefaultFnStorage,
     FutureStorage: StorageMut = DefaultFutureStorage,
->(DynAsyncFnOnceImpl<'capture, Arg, Ret, FnStorage, FutureStorage, DynFutureSend>);
+>(LocalDynAsyncFnOnce<'capture, Arg, Ret, FnStorage, FutureStorage>);
+
+unsafe_impl_send_sync!(async DynAsyncFnOnce, StorageMut);
 
 impl<'capture, Arg: ForLt, Ret: ForLt, FnStorage: StorageMut, FutureStorage: StorageMut>
     DynAsyncFnOnce<'capture, Arg, Ret, FnStorage, FutureStorage>
 {
     pub fn new<F: AsyncFnOnceSend<'capture, Arg, Ret>>(f: F) -> Self {
-        Self(DynAsyncFnOnceImpl::new(async move |arg, _| {
-            f.call(arg).await
-        }))
+        Self(LocalDynAsyncFnOnce {
+            func: ManuallyDrop::new(StorageOnceImpl::new(f)),
+            call: Some(|func, arg, fut, _| unsafe {
+                ReturnOrFuture::store_future(func.cast::<F>().read().call(arg), fut)
+            }),
+            _capture: PhantomData,
+        })
     }
 
     pub fn new_sync<
@@ -439,46 +366,12 @@ impl<'capture, Arg: ForLt, Ret: ForLt, FnStorage: StorageMut, FutureStorage: Sto
     >(
         f: F,
     ) -> Self {
-        Self(DynAsyncFnOnceImpl::new_sync(f))
+        Self(LocalDynAsyncFnOnce::new_sync(f))
     }
 
     pub async fn call<'a>(self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-        self.0.call(arg).await
+        unsafe { SendFuture::new(self.0.call(arg)).await }
     }
 }
 
-impl_debug!(async DynAsyncFnOnce, StorageMut);
-
-pub struct LocalDynAsyncFnOnce<
-    'capture,
-    Arg: ForLt,
-    Ret: ForLt = ForFixed<()>,
-    FnStorage: StorageMut = DefaultFnStorage,
-    FutureStorage: StorageMut = DefaultFutureStorage,
->(DynAsyncFnOnceImpl<'capture, Arg, Ret, FnStorage, FutureStorage, LocalDynFuture>);
-
-impl<'capture, Arg: ForLt, Ret: ForLt, FnStorage: StorageMut, FutureStorage: StorageMut>
-    LocalDynAsyncFnOnce<'capture, Arg, Ret, FnStorage, FutureStorage>
-{
-    pub fn new<
-        F: for<'a> AsyncFnOnce(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + 'capture,
-    >(
-        f: F,
-    ) -> Self {
-        Self(DynAsyncFnOnceImpl::new(f))
-    }
-
-    pub fn new_sync<
-        F: for<'a> FnOnce(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + 'capture,
-    >(
-        f: F,
-    ) -> Self {
-        Self(DynAsyncFnOnceImpl::new_sync(f))
-    }
-
-    pub async fn call<'a>(self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-        self.0.call(arg).await
-    }
-}
-
-impl_debug!(async LocalDynAsyncFnOnce, StorageMut);
+impl_debug!(async DynAsyncFnOnce.0, StorageMut);

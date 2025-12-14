@@ -5,7 +5,6 @@ use core::{
     marker::{PhantomData, PhantomPinned},
     mem,
     mem::MaybeUninit,
-    ops::{Deref, DerefMut},
     ptr::NonNull,
 };
 
@@ -284,26 +283,6 @@ mod private {
         fn ptr_mut(&mut self) -> NonNull<()> {
             self.0
         }
-    }
-}
-
-pub(crate) struct SendWrapper<S>(S);
-impl<S> SendWrapper<S> {
-    pub(crate) unsafe fn new(storage: S) -> Self {
-        Self(storage)
-    }
-}
-unsafe impl<S> Send for SendWrapper<S> {}
-impl<S> Deref for SendWrapper<S> {
-    type Target = S;
-    #[cfg_attr(coverage_nightly, coverage(off))]
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-impl<S> DerefMut for SendWrapper<S> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
     }
 }
 
