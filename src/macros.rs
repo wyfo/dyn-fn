@@ -3,8 +3,8 @@ macro_rules! new_impls {
         crate::macros::new_impls!(@ $(($arc))? $name, $storage, $fn_storage, {$($f)*}, new_impl, new, new_raw, new_box, new_arc);
     };
     (async $(($arc:ident))? $name:ident, $storage:ident, $fn_storage:ident, [$($f_sync:tt)*], $($f:tt)*) => {
-        crate::macros::new_impls!(@ $(($arc))? $name, $storage, $fn_storage, {$($f)*}, new_impl, new, new_raw, new_box, new_arc);
-        crate::macros::new_impls!(@ $(($arc))? $name, $storage, $fn_storage, {$($f_sync)*}, new_sync_impl, new_sync, new_sync_raw, new_sync_box, new_sync_arc);
+        crate::macros::new_impls!(@ $(($arc))? $name, $storage, $fn_storage, {$($f)*}, new_impl, new, new_raw, new_box, new_arc, FutureStorage);
+        crate::macros::new_impls!(@ $(($arc))? $name, $storage, $fn_storage, {$($f_sync)*}, new_sync_impl, new_sync, new_sync_raw, new_sync_box, new_sync_arc, FutureStorage);
     };
     (@ $name:ident, $storage:ident, $fn_storage:ident, {$($f:tt)*}, $new_impl:ident, $new:ident, $new_raw:ident, $new_box:ident, $new_arc:ident $(, $future_storage:ident)?) => {
         impl<'capture, Arg: ForLt, Ret: ForLt, FnStorage: $fn_storage, $($future_storage: StorageMut)?>
@@ -64,7 +64,7 @@ macro_rules! new_impls {
 
     };
     (@(arc) $name:ident, $storage:ident, $fn_storage:ident, {$($f:tt)*}, $new_impl:ident, $new:ident, $new_raw:ident, $new_box:ident, $new_arc:ident $(, $future_storage:ident)?) => {
-        crate::macros::new_impls!(@ $name, $storage, $fn_storage, {$($f)*}, $new_impl, $new, $new_raw, $new_box, $new_arc);
+        crate::macros::new_impls!(@ $name, $storage, $fn_storage, {$($f)*}, $new_impl, $new, $new_raw, $new_box, $new_arc $(, $future_storage)?);
         #[cfg(feature = "alloc")]
         impl<'capture, Arg: ForLt, Ret: ForLt, $($future_storage: StorageMut)?> $name<'capture, Arg, Ret, crate::storage::Arc, $($future_storage)?> {
             #[cfg_attr(coverage_nightly, coverage(off))]
