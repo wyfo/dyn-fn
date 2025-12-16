@@ -40,6 +40,7 @@ macro_rules! new_impls {
             }
         }
 
+        #[cfg(feature = "alloc")]
         impl<'capture, Arg: ForLt, Ret: ForLt, const SIZE: usize, const ALIGN: usize, $($future_storage: StorageMut)?>
             $name<'capture, Arg, Ret, crate::storage::RawOrBox<SIZE, ALIGN>, $($future_storage)?>
         where
