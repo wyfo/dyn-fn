@@ -13,7 +13,14 @@ elain = "0.3"
 higher-kinded-types = "0.3.0"
 
 [dev-dependencies]
+async-trait = "0.1"
+futures-util = "0.3"
+divan = "0.1"
 trybuild = "1"
+
+[[bench]]
+name = "async_trait"
+harness = false
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }

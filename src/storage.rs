@@ -220,9 +220,13 @@ pub struct Box(NonNull<()>);
 #[cfg(feature = "alloc")]
 impl Box {
     fn new_box<T>(data: StdBox<T>) -> NewStorage<Self> {
+        fn drop_box<T>(data: NonNull<()>) {
+            drop(unsafe { StdBox::<T>::from_raw(data.cast().as_ptr()) })
+        }
         (
             Self(NonNull::new(StdBox::into_raw(data).cast()).unwrap()),
-            |data| drop(unsafe { StdBox::<T>::from_raw(data.cast().as_ptr()) }),
+            // |data| drop(unsafe { StdBox::<T>::from_raw(data.cast().as_ptr()) }),
+            drop_box::<T>,
             |data, moved| match moved {
                 true => {
                     drop(unsafe { StdBox::<mem::ManuallyDrop<T>>::from_raw(data.cast().as_ptr()) })

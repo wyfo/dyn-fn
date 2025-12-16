@@ -1,4 +1,5 @@
 use core::{
+    hint::assert_unchecked,
     marker::PhantomData,
     mem,
     mem::ManuallyDrop,
@@ -46,11 +47,21 @@ impl<'a, Ret> ReturnOrFuture<'a, Ret> {
             >(fut_ptr.as_mut() as _)))
         }
     }
+}
 
-    async fn get(self) -> Ret {
-        match self {
-            Self::Return(ret) => ret,
-            Self::Future(future) => future.await,
+async unsafe fn async_call<S: StorageMut, Ret>(
+    call: impl FnOnce(&mut Option<StorageImpl<S>>) -> ReturnOrFuture<'_, Ret>,
+) -> Ret {
+    let mut future = None;
+    match call(&mut future) {
+        ReturnOrFuture::Return(ret) => {
+            unsafe { assert_unchecked(future.is_none()) };
+            ret
+        }
+        ReturnOrFuture::Future(fut) => {
+            let ret = fut.await;
+            unsafe { assert_unchecked(future.is_some()) };
+            ret
         }
     }
 }
@@ -122,9 +133,7 @@ impl<'capture, Arg: ForLt, Ret: ForLt, FnStorage: Storage, FutureStorage: Storag
     }
 
     pub async fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-        let mut future = None;
-        let res = unsafe { (self.call)(self.func.ptr(), arg, &mut future, PhantomData) };
-        res.get().await
+        unsafe { async_call(|fut| (self.call)(self.func.ptr(), arg, fut, PhantomData)) }.await
     }
 }
 
@@ -239,9 +248,7 @@ impl<'capture, Arg: ForLt, Ret: ForLt, FnStorage: StorageMut, FutureStorage: Sto
     }
 
     pub async fn call<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-        let mut future = None;
-        let res = unsafe { (self.call)(self.func.ptr_mut(), arg, &mut future, PhantomData) };
-        res.get().await
+        unsafe { async_call(|fut| (self.call)(self.func.ptr_mut(), arg, fut, PhantomData)) }.await
     }
 }
 
@@ -341,10 +348,8 @@ impl<'capture, Arg: ForLt, Ret: ForLt, FnStorage: StorageMut, FutureStorage: Sto
     }
 
     pub async fn call<'a>(mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-        let mut future = None;
         let call = unsafe { self.call.take().unwrap_unchecked() };
-        let res = unsafe { call(self.func.ptr_once(), arg, &mut future, PhantomData) };
-        res.get().await
+        unsafe { async_call(|fut| call(self.func.ptr_once(), arg, fut, PhantomData)).await }
     }
 }
 

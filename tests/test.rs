@@ -1,18 +1,6 @@
-use core::{
-    pin::pin,
-    sync::atomic::{AtomicUsize, Ordering},
-    task::{Context, Poll, Waker},
-};
+use core::sync::atomic::{AtomicUsize, Ordering};
 
 use dyn_fn::{hkt::*, *};
-
-fn poll_once<R>(fut: impl Future<Output = R>) -> R {
-    let fut = pin!(fut);
-    match pin!(fut).poll(&mut Context::from_waker(Waker::noop())) {
-        Poll::Ready(ret) => ret,
-        Poll::Pending => panic!("should not be pending"),
-    }
-}
 
 struct F<'a>(&'a AtomicUsize);
 impl<'capture> AsyncFnSend<'capture, ForRef<str>, ForFixed<usize>> for F<'capture> {
@@ -50,30 +38,31 @@ macro_rules! test {
     (sync $(($clone:ident))? $name:ident, $fn:ident) => {
         #[test]
         fn $name() {
-            use core::convert::identity;
-            test!(@ $(($clone))? $fn, new, identity);
+            test!(@ $(($clone))? $fn, new, {});
         }
     };
     (async $(($clone:ident))? $name:ident, $fn:ident) => {
         #[test]
         fn $name() {
-            test!(@ $(($clone))? $fn, new, poll_once, async);
-            test!(@ $(($clone))? $fn, new_sync, poll_once);
+            use futures_util::FutureExt;
+            test!(@ $(($clone))? $fn, new, {.now_or_never().unwrap()}, async);
+            test!(@ $(($clone))? $fn, new_sync, {.now_or_never().unwrap()});
         }
     };
     (async-send $(($clone:ident))? $name:ident, $fn:ident) => {
         #[test]
         fn $name() {
+            use futures_util::FutureExt;
             let mut len = AtomicUsize::new(0);
             #[allow(unused_mut)]
             let mut callback = $fn::<ForRef<str>, ForFixed<usize>>::new(F(&len));
-            assert_eq!(poll_once(callback.call("test")), 4);
+            assert_eq!(callback.call("test").now_or_never().unwrap(), 4);
             assert_eq!(*len.get_mut(), 4);
             drop($fn::<ForRef<str>, ForFixed<usize>>::new(F(&len)));
-            test!(@ $(($clone))? $fn, new_sync, poll_once);
+            test!(@ $(($clone))? $fn, new_sync, {.now_or_never().unwrap()});
         }
     };
-    (@ $(($clone:ident))? $fn:ident, $new:ident, $res:ident $(, $async:tt)?) => {
+    (@ $(($clone:ident))? $fn:ident, $new:ident, {$($res:tt)*} $(, $async:tt)?) => {
         let mut len = AtomicUsize::new(0);
         #[allow(unused_mut)]
         let mut callback = $fn::<ForRef<str>, ForFixed<usize>, test!(@ storage $($clone)?)>::$new($($async)?|s: &str, _| {
@@ -81,7 +70,7 @@ macro_rules! test {
             s.len()
         });
         $(#[cfg(feature = "alloc")] let _ = callback.$clone();)?
-        assert_eq!($res(callback.call("test")), 4);
+        assert_eq!(callback.call("test") $($res)*, 4);
         assert_eq!(*len.get_mut(), 4);
         drop($fn::<ForRef<str>, ForFixed<usize>>::$new($($async)?|s: &str, _| {
             len.store(s.len(), Ordering::Relaxed);
@@ -104,14 +93,3 @@ test!(async-send dyn_async_fn_mut, DynAsyncFnMut);
 test!(async local_dyn_async_fn_mut, LocalDynAsyncFnMut);
 test!(async-send dyn_async_fn_once, DynAsyncFnOnce);
 test!(async local_dyn_async_fn_once, LocalDynAsyncFnOnce);
-
-#[test]
-fn dyn_async_fn_sync() {
-    let mut len = AtomicUsize::new(0);
-    let callback = LocalDynAsyncFn::<ForRef<str>, ForFixed<usize>>::new_sync(|s: &str, _| {
-        len.store(s.len(), Ordering::Relaxed);
-        s.len()
-    });
-    assert_eq!(poll_once(callback.call("test")), 4);
-    assert_eq!(*len.get_mut(), 4);
-}
