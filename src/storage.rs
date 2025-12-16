@@ -261,6 +261,9 @@ impl Arc {
 #[cfg(feature = "alloc")]
 impl Clone for Arc {
     fn clone(&self) -> Self {
+        // The pointer has been obtained through `Arc::into_raw`,
+        // and the `Arc` instance is still valid because strong
+        // count is only decremented in drop.
         unsafe { StdArc::increment_strong_count(self.0.as_ptr()) }
         Self(self.0)
     }
