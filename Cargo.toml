@@ -22,6 +22,10 @@ trybuild = "1"
 name = "async_trait"
 harness = false
 
+[[bench]]
+name = "box_dyn_fn"
+harness = false
+
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }
 
