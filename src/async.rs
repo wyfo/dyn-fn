@@ -183,6 +183,10 @@ impl<
         }
     }
 
+    pub fn is_sync(&self) -> bool {
+        self.storage.vtable.call_sync.is_some()
+    }
+
     pub async fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
         let mut future = MaybeUninit::uninit();
         let vtable = unsafe {
@@ -192,9 +196,18 @@ impl<
     }
 
     // TODO I've no idea why this code is not fully covered when alloc feature is enabled
+    // Anyway, it surely comes from https://github.com/taiki-e/cargo-llvm-cov/issues/394
     #[cfg_attr(coverage_nightly, coverage(off))]
     pub fn call_sync<'a>(&self, arg: Arg::Of<'a>) -> Option<Ret::Of<'a>> {
         unsafe { self.storage.vtable.call_sync?(self.storage.ptr(), arg, PhantomData) }.into()
+    }
+
+    pub async fn call_try_sync<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
+        if self.is_sync() {
+            self.call_sync(arg).unwrap()
+        } else {
+            self.call(arg).await
+        }
     }
 }
 
@@ -257,12 +270,20 @@ impl<
         Self(LocalDynAsyncFn::new_sync_impl::<F>(storage))
     }
 
+    pub fn is_sync(&self) -> bool {
+        self.0.is_sync()
+    }
+
     pub async fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
         unsafe { SendFuture::new(self.0.call(arg)).await }
     }
 
     pub fn call_sync<'a>(&self, arg: Arg::Of<'a>) -> Option<Ret::Of<'a>> {
         self.0.call_sync(arg)
+    }
+
+    pub async fn call_try_sync<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
+        unsafe { SendFuture::new(self.0.call_try_sync(arg)).await }
     }
 }
 
@@ -342,6 +363,10 @@ impl<
         }
     }
 
+    pub fn is_sync(&self) -> bool {
+        self.storage.vtable.call_sync.is_some()
+    }
+
     pub async fn call<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
         let mut future = MaybeUninit::uninit();
         let vtable = unsafe {
@@ -352,6 +377,14 @@ impl<
 
     pub fn call_sync<'a>(&mut self, arg: Arg::Of<'a>) -> Option<Ret::Of<'a>> {
         unsafe { self.storage.vtable.call_sync?(self.storage.ptr_mut(), arg, PhantomData) }.into()
+    }
+
+    pub async fn call_try_sync<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
+        if self.is_sync() {
+            self.call_sync(arg).unwrap()
+        } else {
+            self.call(arg).await
+        }
     }
 }
 
@@ -401,12 +434,20 @@ impl<
         Self(LocalDynAsyncFnMut::new_sync_impl::<F>(storage))
     }
 
+    pub fn is_sync(&self) -> bool {
+        self.0.is_sync()
+    }
+
     pub async fn call<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
         SendFuture(self.0.call(arg)).await
     }
 
     pub fn call_sync<'a>(&mut self, arg: Arg::Of<'a>) -> Option<Ret::Of<'a>> {
         self.0.call_sync(arg)
+    }
+
+    pub async fn call_try_sync<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
+        SendFuture(self.0.call_try_sync(arg)).await
     }
 }
 
@@ -481,6 +522,10 @@ impl<
         }
     }
 
+    pub fn is_sync(&self) -> bool {
+        self.storage.vtable.call_sync.is_some()
+    }
+
     pub async fn call<'a>(self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
         let mut storage = ManuallyDrop::new(self.storage);
         let mut future = MaybeUninit::uninit();
@@ -493,6 +538,14 @@ impl<
         let call_sync = self.storage.vtable.call_sync?;
         let mut storage = ManuallyDrop::new(self.storage);
         unsafe { call_sync(storage.ptr_mut(), arg, PhantomData) }.into()
+    }
+
+    pub async fn call_try_sync<'a>(self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
+        if self.is_sync() {
+            self.call_sync(arg).unwrap()
+        } else {
+            self.call(arg).await
+        }
     }
 }
 
@@ -544,12 +597,20 @@ impl<
         Self(LocalDynAsyncFnOnce::new_sync_impl::<F>(storage))
     }
 
+    pub fn is_sync(&self) -> bool {
+        self.0.is_sync()
+    }
+
     pub async fn call<'a>(self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
         unsafe { SendFuture::new(self.0.call(arg)).await }
     }
 
     pub fn call_sync(self, arg: Arg::Of<'_>) -> Option<Ret::Of<'_>> {
         self.0.call_sync(arg)
+    }
+
+    pub async fn call_try_sync<'a>(self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
+        unsafe { SendFuture::new(self.0.call_try_sync(arg)).await }
     }
 }
 

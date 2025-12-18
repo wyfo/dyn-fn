@@ -46,7 +46,9 @@ macro_rules! test {
         fn $name() {
             use futures_util::FutureExt;
             test!(@ $(($clone))? $fn, new, call, {.now_or_never().unwrap()}, async);
+            test!(@ $(($clone))? $fn, new, call_try_sync, {.now_or_never().unwrap()}, async);
             test!(@ $(($clone))? $fn, new_sync, call, {.now_or_never().unwrap()});
+            test!(@ $(($clone))? $fn, new_sync, call_try_sync, {.now_or_never().unwrap()});
             test!(@ $(($clone))? $fn, new_sync, call_sync, {.unwrap()});
         }
     };
@@ -59,8 +61,15 @@ macro_rules! test {
             let mut callback = $fn::<ForRef<str>, ForFixed<usize>>::new(F(&len));
             assert_eq!(callback.call("test").now_or_never().unwrap(), 4);
             assert_eq!(*len.get_mut(), 4);
+            let mut len = AtomicUsize::new(0);
+            #[allow(unused_mut)]
+            let mut callback = $fn::<ForRef<str>, ForFixed<usize>>::new(F(&len));
+            assert!(!callback.is_sync());
+            assert_eq!(callback.call_try_sync("test").now_or_never().unwrap(), 4);
+            assert_eq!(*len.get_mut(), 4);
             test!(@ call_sync, $fn::<ForRef<str>, ForFixed<usize>>::new(F(&len)), async);
             test!(@ $(($clone))? $fn, new_sync, call, {.now_or_never().unwrap()});
+            test!(@ $(($clone))? $fn, new_sync, call_try_sync, {.now_or_never().unwrap()});
             test!(@ $(($clone))? $fn, new_sync, call_sync, {.unwrap()});
         }
     };
