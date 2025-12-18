@@ -12,11 +12,11 @@ note: required because it appears within the type `dyn_fn::storage::Box`
   |
   | pub struct Box(NonNull<()>);
   |            ^^^
-note: required because it appears within the type `storage::StorageImpl<dyn_fn::storage::Box>`
+note: required because it appears within the type `storage::DynStorage<dyn_fn::storage::Box, dyn_fn::sync::SyncVTable<dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>>>`
  --> src/storage.rs
   |
-  | pub(crate) struct StorageImpl<S: Storage> {
-  |                   ^^^^^^^^^^^
+  | pub(crate) struct DynStorage<S: Storage, VT: VTable> {
+  |                   ^^^^^^^^^^
 note: required because it appears within the type `dyn_fn::LocalDynFn<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>>`
  --> src/sync.rs
   |
@@ -42,11 +42,11 @@ note: required because it appears within the type `dyn_fn::storage::Box`
   |
   | pub struct Box(NonNull<()>);
   |            ^^^
-note: required because it appears within the type `storage::StorageImpl<dyn_fn::storage::Box>`
+note: required because it appears within the type `storage::DynStorage<dyn_fn::storage::Box, dyn_fn::sync::SyncVTable<dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>>>`
  --> src/storage.rs
   |
-  | pub(crate) struct StorageImpl<S: Storage> {
-  |                   ^^^^^^^^^^^
+  | pub(crate) struct DynStorage<S: Storage, VT: VTable> {
+  |                   ^^^^^^^^^^
 note: required because it appears within the type `dyn_fn::LocalDynFn<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>>`
  --> src/sync.rs
   |
@@ -72,11 +72,11 @@ note: required because it appears within the type `dyn_fn::storage::Box`
    |
    | pub struct Box(NonNull<()>);
    |            ^^^
-note: required because it appears within the type `storage::StorageImpl<dyn_fn::storage::Box>`
+note: required because it appears within the type `storage::DynStorage<dyn_fn::storage::Box, dyn_fn::sync::SyncVTable<dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>>>`
   --> src/storage.rs
    |
-   | pub(crate) struct StorageImpl<S: Storage> {
-   |                   ^^^^^^^^^^^
+   | pub(crate) struct DynStorage<S: Storage, VT: VTable> {
+   |                   ^^^^^^^^^^
 note: required because it appears within the type `dyn_fn::LocalDynFnMut<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>>`
   --> src/sync.rs
    |
@@ -102,11 +102,11 @@ note: required because it appears within the type `dyn_fn::storage::Box`
    |
    | pub struct Box(NonNull<()>);
    |            ^^^
-note: required because it appears within the type `storage::StorageImpl<dyn_fn::storage::Box>`
+note: required because it appears within the type `storage::DynStorage<dyn_fn::storage::Box, dyn_fn::sync::SyncVTable<dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>>>`
   --> src/storage.rs
    |
-   | pub(crate) struct StorageImpl<S: Storage> {
-   |                   ^^^^^^^^^^^
+   | pub(crate) struct DynStorage<S: Storage, VT: VTable> {
+   |                   ^^^^^^^^^^
 note: required because it appears within the type `dyn_fn::LocalDynFnMut<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>>`
   --> src/sync.rs
    |
@@ -132,16 +132,11 @@ note: required because it appears within the type `dyn_fn::storage::Box`
    |
    | pub struct Box(NonNull<()>);
    |            ^^^
-note: required because it appears within the type `storage::StorageOnceImpl<dyn_fn::storage::Box>`
+note: required because it appears within the type `storage::DynStorage<dyn_fn::storage::Box, dyn_fn::sync::SyncVTable<dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>>>`
   --> src/storage.rs
    |
-   | pub(crate) struct StorageOnceImpl<S: StorageMut> {
-   |                   ^^^^^^^^^^^^^^^
-note: required because it appears within the type `ManuallyDrop<storage::StorageOnceImpl<dyn_fn::storage::Box>>`
-  --> $RUST/core/src/mem/manually_drop.rs
-   |
-   | pub struct ManuallyDrop<T: ?Sized> {
-   |            ^^^^^^^^^^^^
+   | pub(crate) struct DynStorage<S: Storage, VT: VTable> {
+   |                   ^^^^^^^^^^
 note: required because it appears within the type `dyn_fn::LocalDynFnOnce<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>>`
   --> src/sync.rs
    |
@@ -167,16 +162,11 @@ note: required because it appears within the type `dyn_fn::storage::Box`
    |
    | pub struct Box(NonNull<()>);
    |            ^^^
-note: required because it appears within the type `storage::StorageOnceImpl<dyn_fn::storage::Box>`
+note: required because it appears within the type `storage::DynStorage<dyn_fn::storage::Box, dyn_fn::sync::SyncVTable<dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>>>`
   --> src/storage.rs
    |
-   | pub(crate) struct StorageOnceImpl<S: StorageMut> {
-   |                   ^^^^^^^^^^^^^^^
-note: required because it appears within the type `ManuallyDrop<storage::StorageOnceImpl<dyn_fn::storage::Box>>`
-  --> $RUST/core/src/mem/manually_drop.rs
-   |
-   | pub struct ManuallyDrop<T: ?Sized> {
-   |            ^^^^^^^^^^^^
+   | pub(crate) struct DynStorage<S: Storage, VT: VTable> {
+   |                   ^^^^^^^^^^
 note: required because it appears within the type `dyn_fn::LocalDynFnOnce<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>>`
   --> src/sync.rs
    |
@@ -202,11 +192,11 @@ note: required because it appears within the type `dyn_fn::storage::Box`
    |
    | pub struct Box(NonNull<()>);
    |            ^^^
-note: required because it appears within the type `storage::StorageImpl<dyn_fn::storage::Box>`
+note: required because it appears within the type `storage::DynStorage<dyn_fn::storage::Box, dyn_fn::r#async::AsyncVTable<dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, RawOrBox<128, 8>>>`
   --> src/storage.rs
    |
-   | pub(crate) struct StorageImpl<S: Storage> {
-   |                   ^^^^^^^^^^^
+   | pub(crate) struct DynStorage<S: Storage, VT: VTable> {
+   |                   ^^^^^^^^^^
 note: required because it appears within the type `dyn_fn::LocalDynAsyncFn<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>`
   --> src/async.rs
    |
@@ -232,11 +222,11 @@ note: required because it appears within the type `dyn_fn::storage::Box`
    |
    | pub struct Box(NonNull<()>);
    |            ^^^
-note: required because it appears within the type `storage::StorageImpl<dyn_fn::storage::Box>`
+note: required because it appears within the type `storage::DynStorage<dyn_fn::storage::Box, dyn_fn::r#async::AsyncVTable<dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, RawOrBox<128, 8>>>`
   --> src/storage.rs
    |
-   | pub(crate) struct StorageImpl<S: Storage> {
-   |                   ^^^^^^^^^^^
+   | pub(crate) struct DynStorage<S: Storage, VT: VTable> {
+   |                   ^^^^^^^^^^
 note: required because it appears within the type `dyn_fn::LocalDynAsyncFn<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>`
   --> src/async.rs
    |
@@ -247,47 +237,6 @@ note: required by a bound in `assert_sync`
    |
  4 | fn assert_sync<T: Send>(_: &T) {}
    |                   ^^^^ required by this bound in `assert_sync`
-
-error[E0277]: `NonNull<()>` cannot be shared between threads safely
-  --> tests/compilation/local.rs:24:17
-   |
-24 |     assert_send(&f.call("test"));
-   |     ----------- ^^^^^^^^^^^^^^^ `NonNull<()>` cannot be shared between threads safely
-   |     |
-   |     required by a bound introduced by this call
-   |
-   = help: within `dyn_fn::LocalDynAsyncFn<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>`, the trait `Sync` is not implemented for `NonNull<()>`
-note: required because it appears within the type `dyn_fn::storage::Box`
-  --> src/storage.rs
-   |
-   | pub struct Box(NonNull<()>);
-   |            ^^^
-note: required because it appears within the type `storage::StorageImpl<dyn_fn::storage::Box>`
-  --> src/storage.rs
-   |
-   | pub(crate) struct StorageImpl<S: Storage> {
-   |                   ^^^^^^^^^^^
-note: required because it appears within the type `dyn_fn::LocalDynAsyncFn<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>`
-  --> src/async.rs
-   |
-   | pub struct LocalDynAsyncFn<
-   |            ^^^^^^^^^^^^^^^
-   = note: required for `&dyn_fn::LocalDynAsyncFn<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>` to implement `Send`
-note: required because it's used within this `async` fn body
-  --> src/async.rs
-   |
-   |       pub async fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-   |  ___________________________________________________________________^
-   | |         let mut future = None;
-   | |         let res = unsafe { (self.call)(self.func.ptr(), arg, &mut future, PhantomData) };
-   | |         res.get().await
-   | |     }
-   | |_____^
-note: required by a bound in `assert_send`
-  --> tests/compilation/local.rs:3:19
-   |
- 3 | fn assert_send<T: Send>(_: &T) {}
-   |                   ^^^^ required by this bound in `assert_send`
 
 error[E0277]: `NonNull<()>` cannot be sent between threads safely
   --> tests/compilation/local.rs:24:17
@@ -303,34 +252,69 @@ error[E0277]: `NonNull<()>` cannot be sent between threads safely
    |     ------------------------------------------------------------- within this `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`
    |
    = help: within `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`, the trait `Send` is not implemented for `NonNull<()>`
-note: required because it appears within the type `dyn_fn::storage::Box`
-  --> src/storage.rs
+note: required because it's used within this `async` fn body
+  --> src/async.rs
    |
-   | pub struct Box(NonNull<()>);
-   |            ^^^
-note: required because it appears within the type `RawOrBox<128, 8>`
-  --> src/storage.rs
-   |
-   | pub enum RawOrBox<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }>
-   |          ^^^^^^^^
-note: required because it appears within the type `storage::StorageImpl<RawOrBox<128, 8>>`
-  --> src/storage.rs
-   |
-   | pub(crate) struct StorageImpl<S: Storage> {
-   |                   ^^^^^^^^^^^
-note: required because it appears within the type `Option<storage::StorageImpl<RawOrBox<128, 8>>>`
-  --> $RUST/core/src/option.rs
-   |
-   | pub enum Option<T> {
-   |          ^^^^^^
+   |   ) -> Ret::Of<'a> {
+   |  __________________^
+   | |     let mut future = MaybeUninit::<FutureStorage>::uninit();
+   | |     let vtable = call(&mut future);
+   | |     let future_ptr = unsafe { future.assume_init_mut().ptr_mut() };
+...  |
+   | |     poll_fn(|cx| unsafe { (vtable.poll)(future_ptr, cx, PhantomData) }).await
+   | | }
+   | |_^
 note: required because it's used within this `async` fn body
   --> src/async.rs
    |
    |       pub async fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
    |  ___________________________________________________________________^
-   | |         let mut future = None;
-   | |         let res = unsafe { (self.call)(self.func.ptr(), arg, &mut future, PhantomData) };
-   | |         res.get().await
+   | |         let call = |fut: &mut _| unsafe {
+   | |             (self.storage.vtable.call)(self.storage.ptr(), arg, fut, PhantomData)
+   | |         };
+   | |         unsafe { async_call(call) }.await
+   | |     }
+   | |_____^
+note: required by a bound in `assert_send`
+  --> tests/compilation/local.rs:3:19
+   |
+ 3 | fn assert_send<T: Send>(_: &T) {}
+   |                   ^^^^ required by this bound in `assert_send`
+
+error[E0277]: `NonNull<()>` cannot be shared between threads safely
+  --> tests/compilation/local.rs:24:17
+   |
+24 |     assert_send(&f.call("test"));
+   |     ----------- ^^^^^^^^^^^^^^^ `NonNull<()>` cannot be shared between threads safely
+   |     |
+   |     required by a bound introduced by this call
+   |
+   = help: within `dyn_fn::LocalDynAsyncFn<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>`, the trait `Sync` is not implemented for `NonNull<()>`
+note: required because it appears within the type `dyn_fn::storage::Box`
+  --> src/storage.rs
+   |
+   | pub struct Box(NonNull<()>);
+   |            ^^^
+note: required because it appears within the type `storage::DynStorage<dyn_fn::storage::Box, dyn_fn::r#async::AsyncVTable<dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, RawOrBox<128, 8>>>`
+  --> src/storage.rs
+   |
+   | pub(crate) struct DynStorage<S: Storage, VT: VTable> {
+   |                   ^^^^^^^^^^
+note: required because it appears within the type `dyn_fn::LocalDynAsyncFn<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>`
+  --> src/async.rs
+   |
+   | pub struct LocalDynAsyncFn<
+   |            ^^^^^^^^^^^^^^^
+   = note: required for `&dyn_fn::LocalDynAsyncFn<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>` to implement `Send`
+note: required because it's used within this `async` fn body
+  --> src/async.rs
+   |
+   |       pub async fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
+   |  ___________________________________________________________________^
+   | |         let call = |fut: &mut _| unsafe {
+   | |             (self.storage.vtable.call)(self.storage.ptr(), arg, fut, PhantomData)
+   | |         };
+   | |         unsafe { async_call(call) }.await
    | |     }
    | |_____^
 note: required by a bound in `assert_send`
@@ -368,71 +352,37 @@ note: required because it appears within the type `RawOrBox<128, 8>`
    |
    | pub enum RawOrBox<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }>
    |          ^^^^^^^^
-note: required because it appears within the type `storage::StorageImpl<RawOrBox<128, 8>>`
-  --> src/storage.rs
+note: required because it appears within the type `ManuallyDrop<RawOrBox<128, 8>>`
+  --> $RUST/core/src/mem/manually_drop.rs
    |
-   | pub(crate) struct StorageImpl<S: Storage> {
-   |                   ^^^^^^^^^^^
-note: required because it appears within the type `Option<storage::StorageImpl<RawOrBox<128, 8>>>`
-  --> $RUST/core/src/option.rs
+   | pub struct ManuallyDrop<T: ?Sized> {
+   |            ^^^^^^^^^^^^
+note: required because it appears within the type `MaybeUninit<RawOrBox<128, 8>>`
+  --> $RUST/core/src/mem/maybe_uninit.rs
    |
-   | pub enum Option<T> {
-   |          ^^^^^^
+   | pub union MaybeUninit<T> {
+   |           ^^^^^^^^^^^
+note: required because it's used within this `async` fn body
+  --> src/async.rs
+   |
+   |   ) -> Ret::Of<'a> {
+   |  __________________^
+   | |     let mut future = MaybeUninit::<FutureStorage>::uninit();
+   | |     let vtable = call(&mut future);
+   | |     let future_ptr = unsafe { future.assume_init_mut().ptr_mut() };
+...  |
+   | |     poll_fn(|cx| unsafe { (vtable.poll)(future_ptr, cx, PhantomData) }).await
+   | | }
+   | |_^
 note: required because it's used within this `async` fn body
   --> src/async.rs
    |
    |       pub async fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
    |  ___________________________________________________________________^
-   | |         let mut future = None;
-   | |         let res = unsafe { (self.call)(self.func.ptr(), arg, &mut future, PhantomData) };
-   | |         res.get().await
-   | |     }
-   | |_____^
-note: required by a bound in `assert_send`
-  --> tests/compilation/local.rs:3:19
-   |
- 3 | fn assert_send<T: Send>(_: &T) {}
-   |                   ^^^^ required by this bound in `assert_send`
-
-error[E0277]: `dyn Future<Output = &str>` cannot be sent between threads safely
-  --> tests/compilation/local.rs:24:17
-   |
-24 |     assert_send(&f.call("test"));
-   |     ----------- ^^^^^^^^^^^^^^^ `dyn Future<Output = &str>` cannot be sent between threads safely
-   |     |
-   |     required by a bound introduced by this call
-   |
-  ::: src/async.rs
-   |
-   |     pub async fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-   |     ------------------------------------------------------------- within this `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`
-   |
-   = help: within `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`, the trait `Send` is not implemented for `dyn Future<Output = &str>`
-   = note: required because it appears within the type `&mut dyn Future<Output = &str>`
-note: required because it appears within the type `Pin<&mut dyn Future<Output = &str>>`
-  --> $RUST/core/src/pin.rs
-   |
-   | pub struct Pin<Ptr> {
-   |            ^^^
-note: required because it's used within this `async` fn body
-  --> src/async.rs
-   |
-   |       async fn get(self) -> Ret {
-   |  _______________________________^
-   | |         match self {
-   | |             Self::Return(ret) => ret,
-   | |             Self::Future(future) => future.await,
-   | |         }
-   | |     }
-   | |_____^
-note: required because it's used within this `async` fn body
-  --> src/async.rs
-   |
-   |       pub async fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-   |  ___________________________________________________________________^
-   | |         let mut future = None;
-   | |         let res = unsafe { (self.call)(self.func.ptr(), arg, &mut future, PhantomData) };
-   | |         res.get().await
+   | |         let call = |fut: &mut _| unsafe {
+   | |             (self.storage.vtable.call)(self.storage.ptr(), arg, fut, PhantomData)
+   | |         };
+   | |         unsafe { async_call(call) }.await
    | |     }
    | |_____^
 note: required by a bound in `assert_send`
@@ -455,11 +405,11 @@ note: required because it appears within the type `dyn_fn::storage::Box`
    |
    | pub struct Box(NonNull<()>);
    |            ^^^
-note: required because it appears within the type `storage::StorageImpl<dyn_fn::storage::Box>`
+note: required because it appears within the type `storage::DynStorage<dyn_fn::storage::Box, dyn_fn::r#async::AsyncVTable<dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, RawOrBox<128, 8>>>`
   --> src/storage.rs
    |
-   | pub(crate) struct StorageImpl<S: Storage> {
-   |                   ^^^^^^^^^^^
+   | pub(crate) struct DynStorage<S: Storage, VT: VTable> {
+   |                   ^^^^^^^^^^
 note: required because it appears within the type `dyn_fn::LocalDynAsyncFnMut<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>`
   --> src/async.rs
    |
@@ -485,11 +435,11 @@ note: required because it appears within the type `dyn_fn::storage::Box`
    |
    | pub struct Box(NonNull<()>);
    |            ^^^
-note: required because it appears within the type `storage::StorageImpl<dyn_fn::storage::Box>`
+note: required because it appears within the type `storage::DynStorage<dyn_fn::storage::Box, dyn_fn::r#async::AsyncVTable<dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, RawOrBox<128, 8>>>`
   --> src/storage.rs
    |
-   | pub(crate) struct StorageImpl<S: Storage> {
-   |                   ^^^^^^^^^^^
+   | pub(crate) struct DynStorage<S: Storage, VT: VTable> {
+   |                   ^^^^^^^^^^
 note: required because it appears within the type `dyn_fn::LocalDynAsyncFnMut<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>`
   --> src/async.rs
    |
@@ -515,30 +465,76 @@ error[E0277]: `NonNull<()>` cannot be sent between threads safely
    |     ----------------------------------------------------------------- within this `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`
    |
    = help: within `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`, the trait `Send` is not implemented for `NonNull<()>`
-note: required because it appears within the type `dyn_fn::storage::Box`
-  --> src/storage.rs
-   |
-   | pub struct Box(NonNull<()>);
-   |            ^^^
-note: required because it appears within the type `storage::StorageImpl<dyn_fn::storage::Box>`
-  --> src/storage.rs
-   |
-   | pub(crate) struct StorageImpl<S: Storage> {
-   |                   ^^^^^^^^^^^
-note: required because it appears within the type `dyn_fn::LocalDynAsyncFnMut<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>`
+note: required because it's used within this `async` fn body
   --> src/async.rs
    |
-   | pub struct LocalDynAsyncFnMut<
-   |            ^^^^^^^^^^^^^^^^^^
-   = note: required because it appears within the type `&mut dyn_fn::LocalDynAsyncFnMut<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>`
+   |   ) -> Ret::Of<'a> {
+   |  __________________^
+   | |     let mut future = MaybeUninit::<FutureStorage>::uninit();
+   | |     let vtable = call(&mut future);
+   | |     let future_ptr = unsafe { future.assume_init_mut().ptr_mut() };
+...  |
+   | |     poll_fn(|cx| unsafe { (vtable.poll)(future_ptr, cx, PhantomData) }).await
+   | | }
+   | |_^
 note: required because it's used within this `async` fn body
   --> src/async.rs
    |
    |       pub async fn call<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
    |  _______________________________________________________________________^
-   | |         let mut future = None;
-   | |         let res = unsafe { (self.call)(self.func.ptr_mut(), arg, &mut future, PhantomData) };
-   | |         res.get().await
+   | |         let call = |fut: &mut _| unsafe {
+   | |             (self.storage.vtable.call)(self.storage.ptr_mut(), arg, fut, PhantomData)
+   | |         };
+   | |         unsafe { async_call(call) }.await
+   | |     }
+   | |_____^
+note: required by a bound in `assert_send`
+  --> tests/compilation/local.rs:3:19
+   |
+ 3 | fn assert_send<T: Send>(_: &T) {}
+   |                   ^^^^ required by this bound in `assert_send`
+
+error[E0277]: `NonNull<()>` cannot be shared between threads safely
+  --> tests/compilation/local.rs:30:17
+   |
+30 |     assert_send(&f.call("test"));
+   |     ----------- ^^^^^^^^^^^^^^^ `NonNull<()>` cannot be shared between threads safely
+   |     |
+   |     required by a bound introduced by this call
+   |
+   = help: the trait `Sync` is not implemented for `NonNull<()>`
+   = note: required for `&NonNull<()>` to implement `Send`
+note: required because it's used within this closure
+  --> src/async.rs
+   |
+   |     let _guard = DropGuard(|| unsafe { (vtable.drop)(future_ptr) });
+   |                            ^^
+note: required because it appears within the type `dyn_fn::r#async::async_call::{closure#0}::DropGuard<{closure@dyn_fn::r#async::async_call<'_, RawOrBox<128, 8>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, {closure@dyn_fn::LocalDynAsyncFnMut<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>::call<'_>::{closure#0}::{closure#0}}>::{closure#0}::{closure#0}}>`
+  --> src/async.rs
+   |
+   |     struct DropGuard<F: FnMut()>(F);
+   |            ^^^^^^^^^
+note: required because it's used within this `async` fn body
+  --> src/async.rs
+   |
+   |   ) -> Ret::Of<'a> {
+   |  __________________^
+   | |     let mut future = MaybeUninit::<FutureStorage>::uninit();
+   | |     let vtable = call(&mut future);
+   | |     let future_ptr = unsafe { future.assume_init_mut().ptr_mut() };
+...  |
+   | |     poll_fn(|cx| unsafe { (vtable.poll)(future_ptr, cx, PhantomData) }).await
+   | | }
+   | |_^
+note: required because it's used within this `async` fn body
+  --> src/async.rs
+   |
+   |       pub async fn call<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
+   |  _______________________________________________________________________^
+   | |         let call = |fut: &mut _| unsafe {
+   | |             (self.storage.vtable.call)(self.storage.ptr_mut(), arg, fut, PhantomData)
+   | |         };
+   | |         unsafe { async_call(call) }.await
    | |     }
    | |_____^
 note: required by a bound in `assert_send`
@@ -576,71 +572,37 @@ note: required because it appears within the type `RawOrBox<128, 8>`
    |
    | pub enum RawOrBox<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }>
    |          ^^^^^^^^
-note: required because it appears within the type `storage::StorageImpl<RawOrBox<128, 8>>`
-  --> src/storage.rs
+note: required because it appears within the type `ManuallyDrop<RawOrBox<128, 8>>`
+  --> $RUST/core/src/mem/manually_drop.rs
    |
-   | pub(crate) struct StorageImpl<S: Storage> {
-   |                   ^^^^^^^^^^^
-note: required because it appears within the type `Option<storage::StorageImpl<RawOrBox<128, 8>>>`
-  --> $RUST/core/src/option.rs
+   | pub struct ManuallyDrop<T: ?Sized> {
+   |            ^^^^^^^^^^^^
+note: required because it appears within the type `MaybeUninit<RawOrBox<128, 8>>`
+  --> $RUST/core/src/mem/maybe_uninit.rs
    |
-   | pub enum Option<T> {
-   |          ^^^^^^
+   | pub union MaybeUninit<T> {
+   |           ^^^^^^^^^^^
+note: required because it's used within this `async` fn body
+  --> src/async.rs
+   |
+   |   ) -> Ret::Of<'a> {
+   |  __________________^
+   | |     let mut future = MaybeUninit::<FutureStorage>::uninit();
+   | |     let vtable = call(&mut future);
+   | |     let future_ptr = unsafe { future.assume_init_mut().ptr_mut() };
+...  |
+   | |     poll_fn(|cx| unsafe { (vtable.poll)(future_ptr, cx, PhantomData) }).await
+   | | }
+   | |_^
 note: required because it's used within this `async` fn body
   --> src/async.rs
    |
    |       pub async fn call<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
    |  _______________________________________________________________________^
-   | |         let mut future = None;
-   | |         let res = unsafe { (self.call)(self.func.ptr_mut(), arg, &mut future, PhantomData) };
-   | |         res.get().await
-   | |     }
-   | |_____^
-note: required by a bound in `assert_send`
-  --> tests/compilation/local.rs:3:19
-   |
- 3 | fn assert_send<T: Send>(_: &T) {}
-   |                   ^^^^ required by this bound in `assert_send`
-
-error[E0277]: `dyn Future<Output = &str>` cannot be sent between threads safely
-  --> tests/compilation/local.rs:30:17
-   |
-30 |     assert_send(&f.call("test"));
-   |     ----------- ^^^^^^^^^^^^^^^ `dyn Future<Output = &str>` cannot be sent between threads safely
-   |     |
-   |     required by a bound introduced by this call
-   |
-  ::: src/async.rs
-   |
-   |     pub async fn call<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-   |     ----------------------------------------------------------------- within this `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`
-   |
-   = help: within `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`, the trait `Send` is not implemented for `dyn Future<Output = &str>`
-   = note: required because it appears within the type `&mut dyn Future<Output = &str>`
-note: required because it appears within the type `Pin<&mut dyn Future<Output = &str>>`
-  --> $RUST/core/src/pin.rs
-   |
-   | pub struct Pin<Ptr> {
-   |            ^^^
-note: required because it's used within this `async` fn body
-  --> src/async.rs
-   |
-   |       async fn get(self) -> Ret {
-   |  _______________________________^
-   | |         match self {
-   | |             Self::Return(ret) => ret,
-   | |             Self::Future(future) => future.await,
-   | |         }
-   | |     }
-   | |_____^
-note: required because it's used within this `async` fn body
-  --> src/async.rs
-   |
-   |       pub async fn call<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-   |  _______________________________________________________________________^
-   | |         let mut future = None;
-   | |         let res = unsafe { (self.call)(self.func.ptr_mut(), arg, &mut future, PhantomData) };
-   | |         res.get().await
+   | |         let call = |fut: &mut _| unsafe {
+   | |             (self.storage.vtable.call)(self.storage.ptr_mut(), arg, fut, PhantomData)
+   | |         };
+   | |         unsafe { async_call(call) }.await
    | |     }
    | |_____^
 note: required by a bound in `assert_send`
@@ -663,16 +625,11 @@ note: required because it appears within the type `dyn_fn::storage::Box`
    |
    | pub struct Box(NonNull<()>);
    |            ^^^
-note: required because it appears within the type `storage::StorageOnceImpl<dyn_fn::storage::Box>`
+note: required because it appears within the type `storage::DynStorage<dyn_fn::storage::Box, dyn_fn::r#async::AsyncVTable<dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, RawOrBox<128, 8>>>`
   --> src/storage.rs
    |
-   | pub(crate) struct StorageOnceImpl<S: StorageMut> {
-   |                   ^^^^^^^^^^^^^^^
-note: required because it appears within the type `ManuallyDrop<storage::StorageOnceImpl<dyn_fn::storage::Box>>`
-  --> $RUST/core/src/mem/manually_drop.rs
-   |
-   | pub struct ManuallyDrop<T: ?Sized> {
-   |            ^^^^^^^^^^^^
+   | pub(crate) struct DynStorage<S: Storage, VT: VTable> {
+   |                   ^^^^^^^^^^
 note: required because it appears within the type `dyn_fn::LocalDynAsyncFnOnce<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>`
   --> src/async.rs
    |
@@ -698,16 +655,11 @@ note: required because it appears within the type `dyn_fn::storage::Box`
    |
    | pub struct Box(NonNull<()>);
    |            ^^^
-note: required because it appears within the type `storage::StorageOnceImpl<dyn_fn::storage::Box>`
+note: required because it appears within the type `storage::DynStorage<dyn_fn::storage::Box, dyn_fn::r#async::AsyncVTable<dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, RawOrBox<128, 8>>>`
   --> src/storage.rs
    |
-   | pub(crate) struct StorageOnceImpl<S: StorageMut> {
-   |                   ^^^^^^^^^^^^^^^
-note: required because it appears within the type `ManuallyDrop<storage::StorageOnceImpl<dyn_fn::storage::Box>>`
-  --> $RUST/core/src/mem/manually_drop.rs
-   |
-   | pub struct ManuallyDrop<T: ?Sized> {
-   |            ^^^^^^^^^^^^
+   | pub(crate) struct DynStorage<S: Storage, VT: VTable> {
+   |                   ^^^^^^^^^^
 note: required because it appears within the type `dyn_fn::LocalDynAsyncFnOnce<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>`
   --> src/async.rs
    |
@@ -729,8 +681,8 @@ error[E0277]: `NonNull<()>` cannot be sent between threads safely
    |
   ::: src/async.rs
    |
-   |     pub async fn call<'a>(mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-   |     ---------------------------------------------------------------- within this `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`
+   |     pub async fn call<'a>(self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
+   |     ------------------------------------------------------------ within this `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`
    |
    = help: within `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`, the trait `Send` is not implemented for `NonNull<()>`
 note: required because it appears within the type `dyn_fn::storage::Box`
@@ -738,16 +690,11 @@ note: required because it appears within the type `dyn_fn::storage::Box`
    |
    | pub struct Box(NonNull<()>);
    |            ^^^
-note: required because it appears within the type `storage::StorageOnceImpl<dyn_fn::storage::Box>`
+note: required because it appears within the type `storage::DynStorage<dyn_fn::storage::Box, dyn_fn::r#async::AsyncVTable<dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, RawOrBox<128, 8>>>`
   --> src/storage.rs
    |
-   | pub(crate) struct StorageOnceImpl<S: StorageMut> {
-   |                   ^^^^^^^^^^^^^^^
-note: required because it appears within the type `ManuallyDrop<storage::StorageOnceImpl<dyn_fn::storage::Box>>`
-  --> $RUST/core/src/mem/manually_drop.rs
-   |
-   | pub struct ManuallyDrop<T: ?Sized> {
-   |            ^^^^^^^^^^^^
+   | pub(crate) struct DynStorage<S: Storage, VT: VTable> {
+   |                   ^^^^^^^^^^
 note: required because it appears within the type `dyn_fn::LocalDynAsyncFnOnce<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>`
   --> src/async.rs
    |
@@ -756,12 +703,63 @@ note: required because it appears within the type `dyn_fn::LocalDynAsyncFnOnce<'
 note: required because it's used within this `async` fn body
   --> src/async.rs
    |
-   |       pub async fn call<'a>(mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-   |  ______________________________________________________________________^
-   | |         let mut future = None;
-   | |         let call = unsafe { self.call.take().unwrap_unchecked() };
-   | |         let res = unsafe { call(self.func.ptr_once(), arg, &mut future, PhantomData) };
-   | |         res.get().await
+   |       pub async fn call<'a>(self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
+   |  __________________________________________________________________^
+   | |         let mut storage = ManuallyDrop::new(self.storage);
+   | |         let call = |fut: &mut _| unsafe {
+   | |             (storage.vtable.call)(storage.ptr_mut(), arg, fut, PhantomData)
+   | |         };
+   | |         unsafe { async_call(call) }.await
+   | |     }
+   | |_____^
+note: required by a bound in `assert_send`
+  --> tests/compilation/local.rs:3:19
+   |
+ 3 | fn assert_send<T: Send>(_: &T) {}
+   |                   ^^^^ required by this bound in `assert_send`
+
+error[E0277]: `NonNull<()>` cannot be shared between threads safely
+  --> tests/compilation/local.rs:36:17
+   |
+36 |     assert_send(&f.call("test"));
+   |     ----------- ^^^^^^^^^^^^^^^ `NonNull<()>` cannot be shared between threads safely
+   |     |
+   |     required by a bound introduced by this call
+   |
+   = help: the trait `Sync` is not implemented for `NonNull<()>`
+   = note: required for `&NonNull<()>` to implement `Send`
+note: required because it's used within this closure
+  --> src/async.rs
+   |
+   |     let _guard = DropGuard(|| unsafe { (vtable.drop)(future_ptr) });
+   |                            ^^
+note: required because it appears within the type `dyn_fn::r#async::async_call::{closure#0}::DropGuard<{closure@dyn_fn::r#async::async_call<'_, RawOrBox<128, 8>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, {closure@dyn_fn::LocalDynAsyncFnOnce<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>::call<'_>::{closure#0}::{closure#0}}>::{closure#0}::{closure#0}}>`
+  --> src/async.rs
+   |
+   |     struct DropGuard<F: FnMut()>(F);
+   |            ^^^^^^^^^
+note: required because it's used within this `async` fn body
+  --> src/async.rs
+   |
+   |   ) -> Ret::Of<'a> {
+   |  __________________^
+   | |     let mut future = MaybeUninit::<FutureStorage>::uninit();
+   | |     let vtable = call(&mut future);
+   | |     let future_ptr = unsafe { future.assume_init_mut().ptr_mut() };
+...  |
+   | |     poll_fn(|cx| unsafe { (vtable.poll)(future_ptr, cx, PhantomData) }).await
+   | | }
+   | |_^
+note: required because it's used within this `async` fn body
+  --> src/async.rs
+   |
+   |       pub async fn call<'a>(self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
+   |  __________________________________________________________________^
+   | |         let mut storage = ManuallyDrop::new(self.storage);
+   | |         let call = |fut: &mut _| unsafe {
+   | |             (storage.vtable.call)(storage.ptr_mut(), arg, fut, PhantomData)
+   | |         };
+   | |         unsafe { async_call(call) }.await
    | |     }
    | |_____^
 note: required by a bound in `assert_send`
@@ -780,8 +778,8 @@ error[E0277]: `*mut ()` cannot be sent between threads safely
    |
   ::: src/async.rs
    |
-   |     pub async fn call<'a>(mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-   |     ---------------------------------------------------------------- within this `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`
+   |     pub async fn call<'a>(self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
+   |     ------------------------------------------------------------ within this `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`
    |
    = help: within `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`, the trait `Send` is not implemented for `*mut ()`
 note: required because it appears within the type `PhantomData<*mut ()>`
@@ -799,73 +797,38 @@ note: required because it appears within the type `RawOrBox<128, 8>`
    |
    | pub enum RawOrBox<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }>
    |          ^^^^^^^^
-note: required because it appears within the type `storage::StorageImpl<RawOrBox<128, 8>>`
-  --> src/storage.rs
+note: required because it appears within the type `ManuallyDrop<RawOrBox<128, 8>>`
+  --> $RUST/core/src/mem/manually_drop.rs
    |
-   | pub(crate) struct StorageImpl<S: Storage> {
-   |                   ^^^^^^^^^^^
-note: required because it appears within the type `Option<storage::StorageImpl<RawOrBox<128, 8>>>`
-  --> $RUST/core/src/option.rs
+   | pub struct ManuallyDrop<T: ?Sized> {
+   |            ^^^^^^^^^^^^
+note: required because it appears within the type `MaybeUninit<RawOrBox<128, 8>>`
+  --> $RUST/core/src/mem/maybe_uninit.rs
    |
-   | pub enum Option<T> {
-   |          ^^^^^^
+   | pub union MaybeUninit<T> {
+   |           ^^^^^^^^^^^
 note: required because it's used within this `async` fn body
   --> src/async.rs
    |
-   |       pub async fn call<'a>(mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-   |  ______________________________________________________________________^
-   | |         let mut future = None;
-   | |         let call = unsafe { self.call.take().unwrap_unchecked() };
-   | |         let res = unsafe { call(self.func.ptr_once(), arg, &mut future, PhantomData) };
-   | |         res.get().await
-   | |     }
-   | |_____^
-note: required by a bound in `assert_send`
-  --> tests/compilation/local.rs:3:19
-   |
- 3 | fn assert_send<T: Send>(_: &T) {}
-   |                   ^^^^ required by this bound in `assert_send`
-
-error[E0277]: `dyn Future<Output = &str>` cannot be sent between threads safely
-  --> tests/compilation/local.rs:36:17
-   |
-36 |     assert_send(&f.call("test"));
-   |     ----------- ^^^^^^^^^^^^^^^ `dyn Future<Output = &str>` cannot be sent between threads safely
-   |     |
-   |     required by a bound introduced by this call
-   |
-  ::: src/async.rs
-   |
-   |     pub async fn call<'a>(mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-   |     ---------------------------------------------------------------- within this `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`
-   |
-   = help: within `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`, the trait `Send` is not implemented for `dyn Future<Output = &str>`
-   = note: required because it appears within the type `&mut dyn Future<Output = &str>`
-note: required because it appears within the type `Pin<&mut dyn Future<Output = &str>>`
-  --> $RUST/core/src/pin.rs
-   |
-   | pub struct Pin<Ptr> {
-   |            ^^^
+   |   ) -> Ret::Of<'a> {
+   |  __________________^
+   | |     let mut future = MaybeUninit::<FutureStorage>::uninit();
+   | |     let vtable = call(&mut future);
+   | |     let future_ptr = unsafe { future.assume_init_mut().ptr_mut() };
+...  |
+   | |     poll_fn(|cx| unsafe { (vtable.poll)(future_ptr, cx, PhantomData) }).await
+   | | }
+   | |_^
 note: required because it's used within this `async` fn body
   --> src/async.rs
    |
-   |       async fn get(self) -> Ret {
-   |  _______________________________^
-   | |         match self {
-   | |             Self::Return(ret) => ret,
-   | |             Self::Future(future) => future.await,
-   | |         }
-   | |     }
-   | |_____^
-note: required because it's used within this `async` fn body
-  --> src/async.rs
-   |
-   |       pub async fn call<'a>(mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-   |  ______________________________________________________________________^
-   | |         let mut future = None;
-   | |         let call = unsafe { self.call.take().unwrap_unchecked() };
-   | |         let res = unsafe { call(self.func.ptr_once(), arg, &mut future, PhantomData) };
-   | |         res.get().await
+   |       pub async fn call<'a>(self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
+   |  __________________________________________________________________^
+   | |         let mut storage = ManuallyDrop::new(self.storage);
+   | |         let call = |fut: &mut _| unsafe {
+   | |             (storage.vtable.call)(storage.ptr_mut(), arg, fut, PhantomData)
+   | |         };
+   | |         unsafe { async_call(call) }.await
    | |     }
    | |_____^
 note: required by a bound in `assert_send`

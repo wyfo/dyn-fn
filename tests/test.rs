@@ -38,15 +38,16 @@ macro_rules! test {
     (sync $(($clone:ident))? $name:ident, $fn:ident) => {
         #[test]
         fn $name() {
-            test!(@ $(($clone))? $fn, new, {});
+            test!(@ $(($clone))? $fn, new, call, {});
         }
     };
     (async $(($clone:ident))? $name:ident, $fn:ident) => {
         #[test]
         fn $name() {
             use futures_util::FutureExt;
-            test!(@ $(($clone))? $fn, new, {.now_or_never().unwrap()}, async);
-            test!(@ $(($clone))? $fn, new_sync, {.now_or_never().unwrap()});
+            test!(@ $(($clone))? $fn, new, call, {.now_or_never().unwrap()}, async);
+            test!(@ $(($clone))? $fn, new_sync, call, {.now_or_never().unwrap()});
+            test!(@ $(($clone))? $fn, new_sync, call_sync, {.unwrap()});
         }
     };
     (async-send $(($clone:ident))? $name:ident, $fn:ident) => {
@@ -58,11 +59,12 @@ macro_rules! test {
             let mut callback = $fn::<ForRef<str>, ForFixed<usize>>::new(F(&len));
             assert_eq!(callback.call("test").now_or_never().unwrap(), 4);
             assert_eq!(*len.get_mut(), 4);
-            drop($fn::<ForRef<str>, ForFixed<usize>>::new(F(&len)));
-            test!(@ $(($clone))? $fn, new_sync, {.now_or_never().unwrap()});
+            test!(@ call_sync, $fn::<ForRef<str>, ForFixed<usize>>::new(F(&len)), async);
+            test!(@ $(($clone))? $fn, new_sync, call, {.now_or_never().unwrap()});
+            test!(@ $(($clone))? $fn, new_sync, call_sync, {.unwrap()});
         }
     };
-    (@ $(($clone:ident))? $fn:ident, $new:ident, {$($res:tt)*} $(, $async:tt)?) => {
+    (@ $(($clone:ident))? $fn:ident, $new:ident, $call:ident, {$($res:tt)*} $(, $async:tt)?) => {
         let mut len = AtomicUsize::new(0);
         #[allow(unused_mut)]
         let mut callback = $fn::<ForRef<str>, ForFixed<usize>, test!(@ storage $($clone)?)>::$new($($async)?|s: &str, _| {
@@ -70,15 +72,23 @@ macro_rules! test {
             s.len()
         });
         $(#[cfg(feature = "alloc")] let _ = callback.$clone();)?
-        assert_eq!(callback.call("test") $($res)*, 4);
+        assert_eq!(callback.$call("test") $($res)*, 4);
         assert_eq!(*len.get_mut(), 4);
-        drop($fn::<ForRef<str>, ForFixed<usize>>::$new($($async)?|s: &str, _| {
+        test!(@ call_sync, $fn::<ForRef<str>, ForFixed<usize>>::$new($($async)?|s: &str, _| {
             len.store(s.len(), Ordering::Relaxed);
             s.len()
-        }));
+        }) $(, $async)?);
     };
-    (@ storage clone) => {CloneStorage};
-    (@ storage) => {storage::DefaultFnStorage}
+    (@ storage clone) => { CloneStorage };
+    (@ storage) => { storage::DefaultFnStorage };
+    (@ call_sync, $callback:expr, async) => {
+        #[allow(unused_mut)]
+        let mut callback = $callback;
+        assert!(callback.call_sync("test").is_none());
+    };
+    (@ call_sync, $callback:expr) => {
+        drop($callback);
+    };
 }
 
 test!(sync(clone) dyn_fn, DynFn);

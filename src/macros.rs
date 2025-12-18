@@ -1,19 +1,19 @@
 macro_rules! new_impls {
-    (sync $(($arc:ident))? $name:ident, $storage:ident, $fn_storage:ident, $($f:tt)*) => {
-        crate::macros::new_impls!(@ $(($arc))? $name, $storage, $fn_storage, {$($f)*}, new_impl, new, new_raw, new_box, new_arc);
+    (sync $(($arc:ident))? $name:ident, $fn_storage:ident, $($f:tt)*) => {
+        crate::macros::new_impls!(@ $(($arc))? $name, $fn_storage, {$($f)*}, new_impl, new, new_raw, new_box, new_arc);
     };
-    (async $(($arc:ident))? $name:ident, $storage:ident, $fn_storage:ident, [$($f_sync:tt)*], $($f:tt)*) => {
-        crate::macros::new_impls!(@ $(($arc))? $name, $storage, $fn_storage, {$($f)*}, new_impl, new, new_raw, new_box, new_arc, FutureStorage);
-        crate::macros::new_impls!(@ $(($arc))? $name, $storage, $fn_storage, {$($f_sync)*}, new_sync_impl, new_sync, new_sync_raw, new_sync_box, new_sync_arc, FutureStorage);
+    (async $(($arc:ident))? $name:ident, $fn_storage:ident, [$($f_sync:tt)*], $($f:tt)*) => {
+        crate::macros::new_impls!(@ $(($arc))? $name, $fn_storage, {$($f)*}, new_impl, new, new_raw, new_box, new_arc, FutureStorage);
+        crate::macros::new_impls!(@ $(($arc))? $name, $fn_storage, {$($f_sync)*}, new_sync_impl, new_sync, new_sync_raw, new_sync_box, new_sync_arc, FutureStorage);
     };
-    (@ $name:ident, $storage:ident, $fn_storage:ident, {$($f:tt)*}, $new_impl:ident, $new:ident, $new_raw:ident, $new_box:ident, $new_arc:ident $(, $future_storage:ident)?) => {
+    (@ $name:ident, $fn_storage:ident, {$($f:tt)*}, $new_impl:ident, $new:ident, $new_raw:ident, $new_box:ident, $new_arc:ident $(, $future_storage:ident)?) => {
         impl<'capture, Arg: ForLt, Ret: ForLt, FnStorage: $fn_storage, $($future_storage: StorageMut)?>
             $name<'capture, Arg, Ret, FnStorage, $($future_storage)?>
         {
             pub fn $new<F: $($f)*>(
                 f: F,
             ) -> Self {
-                Self::$new_impl::<F>($storage::new(f))
+                Self::$new_impl::<F>(FnStorage::new(f))
             }
         }
 
@@ -26,7 +26,7 @@ macro_rules! new_impls {
             pub const fn $new_raw<F: $($f)*>(
                 f: F,
             ) -> Self {
-                Self::$new_impl::<F>($storage::new_raw(f))
+                Self::$new_impl::<F>(crate::storage::Raw::new(f))
             }
         }
 
@@ -36,7 +36,7 @@ macro_rules! new_impls {
             pub fn $new_box<F: $($f)*>(
                 f: alloc::boxed::Box<F>,
             ) -> Self {
-                Self::$new_impl::<F>($storage::new_box(f))
+                Self::$new_impl::<F>(crate::storage::Box::new_box(f))
             }
         }
 
@@ -50,7 +50,7 @@ macro_rules! new_impls {
             pub const fn $new_raw<F: $($f)*>(
                 f: F,
             ) -> Self {
-                Self::$new_impl::<F>($storage::new_raw2(f))
+                Self::$new_impl::<F>(crate::storage::RawOrBox::Raw(crate::storage::Raw::new(f)))
             }
 
             #[cfg_attr(coverage_nightly, coverage(off))]
@@ -58,21 +58,21 @@ macro_rules! new_impls {
             pub fn $new_box<F: $($f)*>(
                 f: alloc::boxed::Box<F>,
             ) -> Self {
-                Self::$new_impl::<F>($storage::new_box2(f))
+                Self::$new_impl::<F>(crate::storage::RawOrBox::Box(crate::storage::Box::new_box(f)))
             }
         }
 
 
     };
-    (@(arc) $name:ident, $storage:ident, $fn_storage:ident, {$($f:tt)*}, $new_impl:ident, $new:ident, $new_raw:ident, $new_box:ident, $new_arc:ident $(, $future_storage:ident)?) => {
-        crate::macros::new_impls!(@ $name, $storage, $fn_storage, {$($f)*}, $new_impl, $new, $new_raw, $new_box, $new_arc $(, $future_storage)?);
+    (@(arc) $name:ident, $fn_storage:ident, {$($f:tt)*}, $new_impl:ident, $new:ident, $new_raw:ident, $new_box:ident, $new_arc:ident $(, $future_storage:ident)?) => {
+        crate::macros::new_impls!(@ $name, $fn_storage, {$($f)*}, $new_impl, $new, $new_raw, $new_box, $new_arc $(, $future_storage)?);
         #[cfg(feature = "alloc")]
         impl<'capture, Arg: ForLt, Ret: ForLt, $($future_storage: StorageMut)?> $name<'capture, Arg, Ret, crate::storage::Arc, $($future_storage)?> {
             #[cfg_attr(coverage_nightly, coverage(off))]
             pub fn $new_arc<F: $($f)*>(
                 f: alloc::sync::Arc<F>,
             ) -> Self {
-                Self::$new_impl::<F>($storage::new_arc(f))
+                Self::$new_impl::<F>(crate::storage::Arc::new_arc(f))
             }
         }
     }
@@ -101,22 +101,19 @@ macro_rules! unsafe_impl_send_sync {
 pub(crate) use unsafe_impl_send_sync;
 
 macro_rules! impl_debug {
-    (async $name:ident $(.$field:tt)?, $fn_storage:ident ) => {
-        crate::macros::impl_debug!(@ $name $(.$field)?, $fn_storage, FutureStorage);
+    (async $name:ident, $fn_storage:ident) => {
+        crate::macros::impl_debug!(@ $name, $fn_storage, FutureStorage);
     };
-    (sync $name:ident $(.$field:tt)?, $fn_storage:ident) => {
-        crate::macros::impl_debug!(@ $name $(.$field)?, $fn_storage);
+    (sync $name:ident, $fn_storage:ident) => {
+        crate::macros::impl_debug!(@ $name, $fn_storage);
     };
-    (@ $name:ident $(.$field:tt)?, $fn_storage:ident $(, $future_storage:ident)?) => {
-        impl<'capture, Arg: ForLt, Ret: ForLt, FnStorage: $fn_storage, $($future_storage: StorageMut)?> core::fmt::Debug
+    (@ $name:ident, $fn_storage:ident $(, $future_storage:ident)?) => {
+        impl<'capture, Arg: ForLt, Ret: ForLt, FnStorage: $fn_storage + core::fmt::Debug, $($future_storage: StorageMut + core::fmt::Debug)?> core::fmt::Debug
             for $name<'capture, Arg, Ret, FnStorage, $($future_storage)?>
         {
             #[cfg_attr(coverage_nightly, coverage(off))]
             fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-                f.debug_struct(stringify!($name))
-                    .field("func", &self$(.$field)?.func)
-                    .field("call", &self$(.$field)?.call)
-                    .finish()
+                f.debug_struct(stringify!($name)).finish()
             }
         }
 

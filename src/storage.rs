@@ -1,9 +1,7 @@
 #[cfg(feature = "alloc")]
 use alloc::{boxed::Box as StdBox, sync::Arc as StdArc};
 use core::{
-    fmt,
     marker::{PhantomData, PhantomPinned},
-    mem,
     mem::MaybeUninit,
     ptr::NonNull,
 };
@@ -16,146 +14,66 @@ pub type DefaultFnStorage = Raw<{ size_of::<usize>() }>;
 pub type DefaultFnStorage = Box;
 pub type DefaultFutureStorage = RawOrBox<{ 16 * size_of::<usize>() }>;
 
-pub trait Storage: private::Storage + fmt::Debug {}
-pub trait StorageMut: Storage {}
+pub trait Storage: private::Storage {}
+pub trait StorageMut: Storage + private::StorageMut {}
 
-#[derive(Debug, Clone)]
-pub(crate) struct StorageImpl<S: Storage> {
-    inner: S,
-    drop: unsafe fn(NonNull<()>),
+pub trait VTable: 'static {
+    fn drop(&self) -> unsafe fn(NonNull<()>);
 }
 
-impl<S: Storage> StorageImpl<S> {
-    const fn new_impl<T>(inner: S) -> Self {
-        let drop = S::drop::<T>;
-        Self { inner, drop }
-    }
+#[derive(Debug)]
+pub(crate) struct DynStorage<S: Storage, VT: VTable> {
+    pub(crate) storage: S,
+    pub(crate) vtable: &'static VT,
+}
 
-    pub(crate) fn new<T>(data: T) -> Self {
-        Self::new_impl::<T>(S::new(data))
-    }
-
+impl<S: Storage, VT: VTable> DynStorage<S, VT> {
     pub(crate) fn ptr<T>(&self) -> NonNull<T> {
-        self.inner.ptr().cast()
+        self.storage.ptr().cast()
     }
 
     pub(crate) fn ptr_mut<T>(&mut self) -> NonNull<T> {
-        self.inner.ptr_mut().cast()
+        self.storage.ptr_mut().cast()
     }
 }
 
-impl<S: Storage> Drop for StorageImpl<S> {
+impl<S: Storage, VT: VTable> Drop for DynStorage<S, VT> {
     fn drop(&mut self) {
-        unsafe { (self.drop)(self.inner.ptr_mut()) }
-    }
-}
-
-impl<const SIZE: usize, const ALIGN: usize> StorageImpl<Raw<SIZE, ALIGN>>
-where
-    Align<ALIGN>: Alignment,
-{
-    #[cfg_attr(coverage_nightly, coverage(off))]
-    pub(crate) const fn new_raw<T>(data: T) -> Self {
-        Self::new_impl::<T>(Raw::new(data))
+        unsafe { self.vtable.drop()(self.storage.ptr_mut()) }
     }
 }
 
 #[cfg(feature = "alloc")]
-impl StorageImpl<Box> {
-    #[cfg_attr(coverage_nightly, coverage(off))]
-    pub(crate) fn new_box<T>(data: StdBox<T>) -> Self {
-        Self::new_impl::<T>(Box::new_box(data))
+impl<S: Storage + Clone, VT: VTable> Clone for DynStorage<S, VT> {
+    fn clone(&self) -> Self {
+        Self {
+            storage: self.storage.clone(),
+            vtable: self.vtable,
+        }
     }
 }
 
-#[cfg(feature = "alloc")]
-impl StorageImpl<Arc> {
-    #[cfg_attr(coverage_nightly, coverage(off))]
-    pub(crate) fn new_arc<T>(data: StdArc<T>) -> Self {
-        Self::new_impl::<T>(Arc::new_arc(data))
+pub(crate) struct StorageMoved<S: StorageMut, T> {
+    ptr: NonNull<T>,
+    _phantom: PhantomData<S>,
+}
+
+impl<S: StorageMut, T> StorageMoved<S, T> {
+    pub(crate) unsafe fn new(ptr: NonNull<()>) -> Self {
+        Self {
+            ptr: ptr.cast(),
+            _phantom: PhantomData,
+        }
+    }
+
+    pub(crate) unsafe fn read(&self) -> T {
+        unsafe { self.ptr.read() }
     }
 }
 
-#[cfg(feature = "alloc")]
-impl<const SIZE: usize, const ALIGN: usize> StorageImpl<RawOrBox<SIZE, ALIGN>>
-where
-    Align<ALIGN>: Alignment,
-{
-    #[cfg_attr(coverage_nightly, coverage(off))]
-    pub(crate) const fn new_raw2<T>(data: T) -> Self {
-        Self::new_impl::<T>(RawOrBox::Raw(Raw::new(data)))
-    }
-
-    #[cfg_attr(coverage_nightly, coverage(off))]
-    pub(crate) fn new_box2<T>(data: StdBox<T>) -> Self {
-        Self::new_impl::<T>(RawOrBox::Box(Box::new_box(data)))
-    }
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct StorageOnceImpl<S: StorageMut> {
-    inner: S,
-    drop: unsafe fn(NonNull<()>, bool),
-}
-
-impl<S: StorageMut> StorageOnceImpl<S> {
-    const fn new_impl<T>(inner: S) -> Self {
-        let drop = S::drop_once::<T>;
-        Self { inner, drop }
-    }
-
-    pub(crate) fn new<T>(data: T) -> Self {
-        Self::new_impl::<T>(S::new(data))
-    }
-
-    pub(crate) fn ptr_once<T>(&mut self) -> NonNull<T> {
-        self.inner.ptr_mut().cast()
-    }
-
-    pub(crate) fn drop(mut self, moved: bool) {
-        unsafe { (self.drop)(self.inner.ptr_mut(), moved) }
-        mem::forget(self);
-    }
-}
-
-impl<S: StorageMut> Drop for StorageOnceImpl<S> {
-    #[cfg_attr(coverage_nightly, coverage(off))]
+impl<S: StorageMut, T> Drop for StorageMoved<S, T> {
     fn drop(&mut self) {
-        unreachable!()
-    }
-}
-
-impl<const SIZE: usize, const ALIGN: usize> StorageOnceImpl<Raw<SIZE, ALIGN>>
-where
-    Align<ALIGN>: Alignment,
-{
-    #[cfg_attr(coverage_nightly, coverage(off))]
-    pub(crate) const fn new_raw<T>(data: T) -> Self {
-        Self::new_impl::<T>(Raw::new(data))
-    }
-}
-
-#[cfg(feature = "alloc")]
-impl StorageOnceImpl<Box> {
-    #[cfg_attr(coverage_nightly, coverage(off))]
-    pub(crate) fn new_box<T>(data: StdBox<T>) -> Self {
-        Self::new_impl::<T>(Box::new_box(data))
-    }
-}
-
-#[cfg(feature = "alloc")]
-impl<const SIZE: usize, const ALIGN: usize> StorageOnceImpl<RawOrBox<SIZE, ALIGN>>
-where
-    Align<ALIGN>: Alignment,
-{
-    #[cfg_attr(coverage_nightly, coverage(off))]
-    pub(crate) const fn new_raw2<T>(data: T) -> Self {
-        Self::new_impl::<T>(RawOrBox::Raw(Raw::new(data)))
-    }
-
-    #[cfg_attr(coverage_nightly, coverage(off))]
-    pub(crate) fn new_box2<T>(data: StdBox<T>) -> Self {
-        Self::new_impl::<T>(RawOrBox::Box(Box::new_box(data)))
+        unsafe { S::drop_moved::<T>(self.ptr.cast()) }
     }
 }
 
@@ -188,7 +106,7 @@ where
         raw
     }
 
-    const fn new<T>(data: T) -> Self {
+    pub(crate) const fn new<T>(data: T) -> Self {
         const { assert!(size_of::<T>() <= SIZE) };
         const { assert!(align_of::<T>() <= ALIGN) };
         unsafe { Self::new_unchecked::<T>(data) }
@@ -209,7 +127,7 @@ impl<const SIZE: usize, const ALIGN: usize> StorageMut for Raw<SIZE, ALIGN> wher
 pub struct Box(NonNull<()>);
 #[cfg(feature = "alloc")]
 impl Box {
-    fn new_box<T>(data: StdBox<T>) -> Self {
+    pub(crate) fn new_box<T>(data: StdBox<T>) -> Self {
         Self(NonNull::new(StdBox::into_raw(data).cast()).unwrap())
     }
 }
@@ -223,7 +141,7 @@ impl StorageMut for Box {}
 pub struct Arc(NonNull<()>);
 #[cfg(feature = "alloc")]
 impl Arc {
-    fn new_arc<T>(data: StdArc<T>) -> Self {
+    pub(crate) fn new_arc<T>(data: StdArc<T>) -> Self {
         Self(NonNull::new(StdArc::into_raw(data).cast_mut().cast()).unwrap())
     }
 }
@@ -265,19 +183,22 @@ impl<const SIZE: usize, const ALIGN: usize> StorageMut for RawOrBox<SIZE, ALIGN>
 {
 }
 
-mod private {
+pub(crate) mod private {
     #[cfg(feature = "alloc")]
     use alloc::{boxed::Box, sync::Arc};
-    use core::ptr::NonNull;
+    use core::{mem::MaybeUninit, ptr::NonNull};
 
     use elain::{Align, Alignment};
 
-    pub trait Storage: Sized {
+    pub trait Storage: Sized + 'static {
         fn new<T>(data: T) -> Self;
         fn ptr(&self) -> NonNull<()>;
         fn ptr_mut(&mut self) -> NonNull<()>;
         unsafe fn drop<T>(ptr_mut: NonNull<()>);
-        unsafe fn drop_once<T>(ptr_mut: NonNull<()>, moved: bool);
+    }
+
+    pub trait StorageMut: Storage {
+        unsafe fn drop_moved<T>(ptr_mut: NonNull<MaybeUninit<T>>);
     }
 
     impl<const SIZE: usize, const ALIGN: usize> Storage for super::Raw<SIZE, ALIGN>
@@ -296,11 +217,13 @@ mod private {
         unsafe fn drop<T>(ptr_mut: NonNull<()>) {
             unsafe { ptr_mut.cast::<T>().drop_in_place() }
         }
-        unsafe fn drop_once<T>(ptr_mut: NonNull<()>, moved: bool) {
-            if !moved {
-                unsafe { ptr_mut.cast::<T>().drop_in_place() };
-            }
-        }
+    }
+
+    impl<const SIZE: usize, const ALIGN: usize> StorageMut for super::Raw<SIZE, ALIGN>
+    where
+        Align<ALIGN>: Alignment,
+    {
+        unsafe fn drop_moved<T>(_ptr_mut: NonNull<MaybeUninit<T>>) {}
     }
 
     #[cfg(feature = "alloc")]
@@ -317,11 +240,11 @@ mod private {
         unsafe fn drop<T>(ptr_mut: NonNull<()>) {
             drop(unsafe { Box::<T>::from_raw(ptr_mut.cast().as_ptr()) })
         }
-        unsafe fn drop_once<T>(ptr_mut: NonNull<()>, moved: bool) {
-            if !moved {
-                unsafe { ptr_mut.cast::<T>().drop_in_place() }
-            }
-            drop(unsafe { Box::<core::mem::ManuallyDrop<T>>::from_raw(ptr_mut.cast().as_ptr()) });
+    }
+    #[cfg(feature = "alloc")]
+    impl StorageMut for super::Box {
+        unsafe fn drop_moved<T>(ptr_mut: NonNull<MaybeUninit<T>>) {
+            drop(unsafe { Box::from_raw(ptr_mut.as_ptr()) });
         }
     }
 
@@ -338,10 +261,6 @@ mod private {
         }
         unsafe fn drop<T>(ptr_mut: NonNull<()>) {
             drop(unsafe { Arc::<T>::from_raw(ptr_mut.cast().as_ptr()) });
-        }
-        #[cfg_attr(coverage_nightly, coverage(off))]
-        unsafe fn drop_once<T>(_ptr_mut: NonNull<()>, _moved: bool) {
-            unreachable!()
         }
     }
 
@@ -382,14 +301,20 @@ mod private {
                 unsafe { super::Box::drop::<T>(ptr_mut) };
             }
         }
+    }
+    #[cfg(feature = "alloc")]
+    impl<const SIZE: usize, const ALIGN: usize> StorageMut for super::RawOrBox<SIZE, ALIGN>
+    where
+        Align<ALIGN>: Alignment,
+    {
         #[cfg_attr(coverage_nightly, coverage(off))] // See new
-        unsafe fn drop_once<T>(ptr_mut: NonNull<()>, moved: bool) {
+        unsafe fn drop_moved<T>(ptr_mut: NonNull<MaybeUninit<T>>) {
             if size_of::<T>() <= SIZE && align_of::<T>() <= ALIGN {
                 // SAFETY: same precondition
-                unsafe { super::Raw::<SIZE, ALIGN>::drop_once::<T>(ptr_mut, moved) };
+                unsafe { super::Raw::<SIZE, ALIGN>::drop_moved::<T>(ptr_mut) };
             } else {
                 // SAFETY: same precondition
-                unsafe { super::Box::drop_once::<T>(ptr_mut, moved) };
+                unsafe { super::Box::drop_moved::<T>(ptr_mut) };
             }
         }
     }
@@ -398,11 +323,29 @@ mod private {
 #[cfg_attr(coverage_nightly, coverage(off))]
 #[cfg(test)]
 mod tests {
-    use core::mem;
+    use core::{mem, mem::ManuallyDrop, ptr::NonNull};
 
     use elain::{Align, Alignment};
 
-    use crate::storage::{Storage, StorageImpl, StorageMut, StorageOnceImpl};
+    use crate::storage::{DynStorage, Storage, StorageMoved, StorageMut, VTable};
+
+    struct TestVTable {
+        drop: unsafe fn(NonNull<()>),
+    }
+    impl VTable for TestVTable {
+        fn drop(&self) -> unsafe fn(NonNull<()>) {
+            self.drop
+        }
+    }
+    type TestStorage<S> = DynStorage<S, TestVTable>;
+    impl<S: Storage> TestStorage<S> {
+        fn new_test<T>(data: T) -> Self {
+            Self {
+                storage: S::new(data),
+                vtable: &TestVTable { drop: S::drop::<T> },
+            }
+        }
+    }
 
     #[test]
     fn raw_alignment() {
@@ -410,7 +353,7 @@ mod tests {
         where
             Align<ALIGN>: Alignment,
         {
-            let storages = [(); 2].map(StorageImpl::<super::Raw<0, ALIGN>>::new);
+            let storages = [(); 2].map(TestStorage::<super::Raw<0, ALIGN>>::new_test);
             for s in &storages {
                 assert!(s.ptr::<Align<ALIGN>>().is_aligned());
             }
@@ -432,15 +375,15 @@ mod tests {
     fn raw_or_box() {
         fn check_variant<const N: usize>(variant: impl Fn(&super::RawOrBox<8>) -> bool) {
             let array = core::array::from_fn::<u8, N, _>(|i| i as u8);
-            let storage = StorageImpl::<super::RawOrBox<8>>::new(array);
-            assert!(variant(&storage.inner));
+            let storage = TestStorage::<super::RawOrBox<8>>::new_test(array);
+            assert!(variant(&storage.storage));
             assert_eq!(unsafe { storage.ptr::<[u8; N]>().read() }, array)
         }
         check_variant::<4>(|s| matches!(s, super::RawOrBox::Raw(_)));
         check_variant::<64>(|s| matches!(s, super::RawOrBox::Box(_)));
 
-        let storage = StorageImpl::<super::RawOrBox<8, 1>>::new(0u64);
-        assert!(matches!(storage.inner, super::RawOrBox::Box(_)));
+        let storage = TestStorage::<super::RawOrBox<8, 1>>::new_test(0u64);
+        assert!(matches!(storage.storage, super::RawOrBox::Box(_)));
     }
 
     struct SetDropped<'a>(&'a mut bool);
@@ -454,7 +397,8 @@ mod tests {
     fn storage_drop() {
         fn check_drop<S: Storage>() {
             let mut dropped = false;
-            let storage = StorageImpl::<S>::new(SetDropped(&mut dropped));
+            let storage = TestStorage::<S>::new_test(SetDropped(&mut dropped));
+            assert!(!*unsafe { storage.ptr::<SetDropped>().as_ref() }.0);
             drop(storage);
             assert!(dropped);
         }
@@ -470,26 +414,22 @@ mod tests {
     }
 
     #[test]
-    fn storage_once_drop() {
-        fn check_drop<S: StorageMut>() {
-            for moved in [true, false] {
-                let mut dropped = false;
-                let mut storage = StorageOnceImpl::<S>::new(SetDropped(&mut dropped));
-                if moved {
-                    unsafe { storage.ptr_once::<SetDropped>().read() };
-                    assert!(dropped);
-                }
-                storage.drop(moved);
-                assert!(dropped);
-            }
+    fn storage_drop_moved() {
+        fn check_drop_moved<S: StorageMut>() {
+            let mut dropped = false;
+            let mut storage =
+                ManuallyDrop::new(TestStorage::<S>::new_test(SetDropped(&mut dropped)));
+            let moved = unsafe { StorageMoved::<S, SetDropped>::new(storage.ptr_mut()) };
+            unsafe { drop(moved.read()) };
+            assert!(dropped);
         }
-        check_drop::<super::Raw<{ size_of::<SetDropped>() }, { align_of::<SetDropped>() }>>();
+        check_drop_moved::<super::Raw<{ size_of::<SetDropped>() }, { align_of::<SetDropped>() }>>();
         #[cfg(feature = "alloc")]
-        check_drop::<super::Box>();
+        check_drop_moved::<super::Box>();
         #[cfg(feature = "alloc")]
-        check_drop::<super::RawOrBox<{ size_of::<SetDropped>() }>>();
+        check_drop_moved::<super::RawOrBox<{ size_of::<SetDropped>() }>>();
         #[cfg(feature = "alloc")]
-        check_drop::<super::RawOrBox<0>>();
+        check_drop_moved::<super::RawOrBox<0>>();
     }
 
     #[cfg(feature = "alloc")]
@@ -504,7 +444,7 @@ mod tests {
             }
         }
         let mut dropped = AtomicBool::new(false);
-        let storage = StorageImpl::<super::Arc>::new(SetDropped(&dropped));
+        let storage = TestStorage::<super::Arc>::new_test(SetDropped(&dropped));
         let storage2 = storage.clone();
         drop(storage);
         assert!(!dropped.load(Relaxed));
