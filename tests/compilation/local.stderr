@@ -132,7 +132,7 @@ note: required because it appears within the type `dyn_fn::storage::Box`
    |
    | pub struct Box(NonNull<()>);
    |            ^^^
-note: required because it appears within the type `storage::DynStorage<dyn_fn::storage::Box, dyn_fn::sync::SyncVTable<dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>>>`
+note: required because it appears within the type `storage::DynStorage<dyn_fn::storage::Box, dyn_fn::sync::SyncVTable<dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ mut dyn_fn::storage::Box> + 'static)>>>`
   --> src/storage.rs
    |
    | pub(crate) struct DynStorage<S: Storage, VT: VTable> {
@@ -162,7 +162,7 @@ note: required because it appears within the type `dyn_fn::storage::Box`
    |
    | pub struct Box(NonNull<()>);
    |            ^^^
-note: required because it appears within the type `storage::DynStorage<dyn_fn::storage::Box, dyn_fn::sync::SyncVTable<dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>>>`
+note: required because it appears within the type `storage::DynStorage<dyn_fn::storage::Box, dyn_fn::sync::SyncVTable<dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ mut dyn_fn::storage::Box> + 'static)>>>`
   --> src/storage.rs
    |
    | pub(crate) struct DynStorage<S: Storage, VT: VTable> {
@@ -757,7 +757,7 @@ note: required because it appears within the type `dyn_fn::storage::Box`
    |
    | pub struct Box(NonNull<()>);
    |            ^^^
-note: required because it appears within the type `storage::DynStorage<dyn_fn::storage::Box, dyn_fn::r#async::AsyncVTable<dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, RawOrBox<128, 8>>>`
+note: required because it appears within the type `storage::DynStorage<dyn_fn::storage::Box, dyn_fn::r#async::AsyncVTable<dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, RawOrBox<128, 8>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ mut dyn_fn::storage::Box> + 'static)>>>`
   --> src/storage.rs
    |
    | pub(crate) struct DynStorage<S: Storage, VT: VTable> {
@@ -787,7 +787,7 @@ note: required because it appears within the type `dyn_fn::storage::Box`
    |
    | pub struct Box(NonNull<()>);
    |            ^^^
-note: required because it appears within the type `storage::DynStorage<dyn_fn::storage::Box, dyn_fn::r#async::AsyncVTable<dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, RawOrBox<128, 8>>>`
+note: required because it appears within the type `storage::DynStorage<dyn_fn::storage::Box, dyn_fn::r#async::AsyncVTable<dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, RawOrBox<128, 8>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ mut dyn_fn::storage::Box> + 'static)>>>`
   --> src/storage.rs
    |
    | pub(crate) struct DynStorage<S: Storage, VT: VTable> {
@@ -822,7 +822,7 @@ note: required because it appears within the type `dyn_fn::storage::Box`
    |
    | pub struct Box(NonNull<()>);
    |            ^^^
-note: required because it appears within the type `storage::DynStorage<dyn_fn::storage::Box, dyn_fn::r#async::AsyncVTable<dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, RawOrBox<128, 8>>>`
+note: required because it appears within the type `storage::DynStorage<dyn_fn::storage::Box, dyn_fn::r#async::AsyncVTable<dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, RawOrBox<128, 8>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ mut dyn_fn::storage::Box> + 'static)>>>`
   --> src/storage.rs
    |
    | pub(crate) struct DynStorage<S: Storage, VT: VTable> {
@@ -840,7 +840,7 @@ note: required because it's used within this `async` fn body
    | |         let mut storage = ManuallyDrop::new(self.storage);
    | |         let mut future = MaybeUninit::uninit();
    | |         let vtable =
-   | |             unsafe { (storage.vtable.call)(storage.ptr_mut(), arg, &mut future, PhantomData) };
+   | |             unsafe { (storage.vtable.call)(&mut storage.storage, arg, &mut future, PhantomData) };
    | |         unsafe { poll_future(vtable, &mut future) }.await
    | |     }
    | |_____^
@@ -884,7 +884,7 @@ note: required because it's used within this `async` fn body
    | |         let mut storage = ManuallyDrop::new(self.storage);
    | |         let mut future = MaybeUninit::uninit();
    | |         let vtable =
-   | |             unsafe { (storage.vtable.call)(storage.ptr_mut(), arg, &mut future, PhantomData) };
+   | |             unsafe { (storage.vtable.call)(&mut storage.storage, arg, &mut future, PhantomData) };
    | |         unsafe { poll_future(vtable, &mut future) }.await
    | |     }
    | |_____^
@@ -941,7 +941,7 @@ note: required because it's used within this `async` fn body
    | |         let mut storage = ManuallyDrop::new(self.storage);
    | |         let mut future = MaybeUninit::uninit();
    | |         let vtable =
-   | |             unsafe { (storage.vtable.call)(storage.ptr_mut(), arg, &mut future, PhantomData) };
+   | |             unsafe { (storage.vtable.call)(&mut storage.storage, arg, &mut future, PhantomData) };
    | |         unsafe { poll_future(vtable, &mut future) }.await
    | |     }
    | |_____^
@@ -991,7 +991,7 @@ note: required because it's used within this `async` fn body
    | |         let mut storage = ManuallyDrop::new(self.storage);
    | |         let mut future = MaybeUninit::uninit();
    | |         let vtable =
-   | |             unsafe { (storage.vtable.call)(storage.ptr_mut(), arg, &mut future, PhantomData) };
+   | |             unsafe { (storage.vtable.call)(&mut storage.storage, arg, &mut future, PhantomData) };
    | |         unsafe { poll_future(vtable, &mut future) }.await
    | |     }
    | |_____^

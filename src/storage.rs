@@ -17,7 +17,7 @@ pub type DefaultFnStorage = Box;
 pub type DefaultFutureStorage = RawOrBox<{ 16 * size_of::<usize>() }>;
 
 pub trait Storage: private::Storage {}
-pub trait StorageMut: Storage + private::StorageMut {}
+pub trait StorageMut: Storage {}
 
 pub(crate) struct DropVTable {
     drop_inner: Option<unsafe fn(NonNull<()>)>,
@@ -84,27 +84,27 @@ impl<S: Storage + Clone, VT: VTable> Clone for DynStorage<S, VT> {
     }
 }
 
-pub(crate) struct StorageMoved<S: StorageMut, T> {
-    ptr: NonNull<T>,
-    _phantom: PhantomData<S>,
+pub(crate) struct StorageMoved<'a, S: StorageMut, T> {
+    storage: &'a mut S,
+    _phantom: PhantomData<T>,
 }
 
-impl<S: StorageMut, T> StorageMoved<S, T> {
-    pub(crate) unsafe fn new(ptr: NonNull<()>) -> Self {
+impl<'a, S: StorageMut, T> StorageMoved<'a, S, T> {
+    pub(crate) unsafe fn new(storage: &'a mut S) -> Self {
         Self {
-            ptr: ptr.cast(),
+            storage,
             _phantom: PhantomData,
         }
     }
 
     pub(crate) unsafe fn read(&self) -> T {
-        unsafe { self.ptr.read() }
+        unsafe { self.storage.ptr().cast().read() }
     }
 }
 
-impl<S: StorageMut, T> Drop for StorageMoved<S, T> {
+impl<S: StorageMut, T> Drop for StorageMoved<'_, S, T> {
     fn drop(&mut self) {
-        unsafe { S::drop_moved::<T>(self.ptr.cast()) }
+        unsafe { self.storage.drop_in_place(Layout::new::<T>()) }
     }
 }
 
@@ -215,7 +215,7 @@ impl<const SIZE: usize, const ALIGN: usize> StorageMut for RawOrBox<SIZE, ALIGN>
 pub(crate) mod private {
     #[cfg(feature = "alloc")]
     use alloc::{boxed::Box, sync::Arc};
-    use core::{alloc::Layout, mem::MaybeUninit, ptr::NonNull};
+    use core::{alloc::Layout, ptr::NonNull};
 
     use elain::{Align, Alignment};
 
@@ -228,10 +228,6 @@ pub(crate) mod private {
             unsafe { ptr_mut.cast::<T>().drop_in_place() }
         }
         unsafe fn drop_in_place(&mut self, layout: Layout);
-    }
-
-    pub trait StorageMut: Storage {
-        unsafe fn drop_moved<T>(ptr_mut: NonNull<MaybeUninit<T>>);
     }
 
     impl<const SIZE: usize, const ALIGN: usize> Storage for super::Raw<SIZE, ALIGN>
@@ -250,13 +246,6 @@ pub(crate) mod private {
         unsafe fn drop_in_place(&mut self, _layout: Layout) {}
     }
 
-    impl<const SIZE: usize, const ALIGN: usize> StorageMut for super::Raw<SIZE, ALIGN>
-    where
-        Align<ALIGN>: Alignment,
-    {
-        unsafe fn drop_moved<T>(_ptr_mut: NonNull<MaybeUninit<T>>) {}
-    }
-
     #[cfg(feature = "alloc")]
     impl Storage for super::Box {
         fn new<T>(data: T) -> Self {
@@ -272,12 +261,6 @@ pub(crate) mod private {
             if layout.size() != 0 {
                 unsafe { alloc::alloc::dealloc(self.0.as_ptr().cast(), layout) };
             }
-        }
-    }
-    #[cfg(feature = "alloc")]
-    impl StorageMut for super::Box {
-        unsafe fn drop_moved<T>(ptr_mut: NonNull<MaybeUninit<T>>) {
-            drop(unsafe { Box::from_raw(ptr_mut.as_ptr()) });
         }
     }
 
@@ -333,22 +316,6 @@ pub(crate) mod private {
                 Self::Raw(s) => unsafe { s.drop_in_place(layout) },
                 // SAFETY: same precondition
                 Self::Box(s) => unsafe { s.drop_in_place(layout) },
-            }
-        }
-    }
-    #[cfg_attr(coverage_nightly, coverage(off))] // See Storage
-    #[cfg(feature = "alloc")]
-    impl<const SIZE: usize, const ALIGN: usize> StorageMut for super::RawOrBox<SIZE, ALIGN>
-    where
-        Align<ALIGN>: Alignment,
-    {
-        unsafe fn drop_moved<T>(ptr_mut: NonNull<MaybeUninit<T>>) {
-            if size_of::<T>() <= SIZE && align_of::<T>() <= ALIGN {
-                // SAFETY: same precondition
-                unsafe { super::Raw::<SIZE, ALIGN>::drop_moved::<T>(ptr_mut) };
-            } else {
-                // SAFETY: same precondition
-                unsafe { super::Box::drop_moved::<T>(ptr_mut) };
             }
         }
     }
@@ -450,7 +417,7 @@ mod tests {
             let mut dropped = false;
             let mut storage =
                 ManuallyDrop::new(TestStorage::<S>::new_test(SetDropped(&mut dropped)));
-            let moved = unsafe { StorageMoved::<S, SetDropped>::new(storage.ptr_mut()) };
+            let moved = unsafe { StorageMoved::<S, SetDropped>::new(&mut storage.storage) };
             unsafe { drop(moved.read()) };
             assert!(dropped);
         }

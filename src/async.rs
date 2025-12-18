@@ -8,7 +8,7 @@ use core::{
     task::{Context, Poll},
 };
 
-use higher_kinded_types::{ForFixed, ForLt};
+use higher_kinded_types::{ForFixed, ForLt, ForRefMut};
 
 use crate::{
     macros::{impl_debug, new_impls, unsafe_impl_send_sync},
@@ -80,26 +80,31 @@ async unsafe fn poll_future<'a, FutureStorage: StorageMut, Ret: ForLt + 'static>
 }
 
 #[expect(type_alias_bounds)]
-type Call<Arg: ForLt + 'static, Ret: ForLt + 'static, FutureStorage> =
+type Call<Arg: ForLt + 'static, Ret: ForLt + 'static, FutureStorage, Ptr: ForLt> =
     for<'a> unsafe fn(
-        NonNull<()>,
+        Ptr::Of<'_>,
         Arg::Of<'a>,
         &mut MaybeUninit<FutureStorage>,
         PhantomData<&'a ()>,
     ) -> &'static FutureVTable<Ret>;
 
 #[expect(type_alias_bounds)]
-type CallSync<Arg: ForLt + 'static, Ret: ForLt> =
-    for<'a, 'b> unsafe fn(NonNull<()>, Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a>;
+type CallSync<Arg: ForLt + 'static, Ret: ForLt, Ptr: ForLt> =
+    for<'a, 'b> unsafe fn(Ptr::Of<'_>, Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a>;
 
-struct AsyncVTable<Arg: ForLt + 'static, Ret: ForLt + 'static, FutureStorage> {
-    call: Call<Arg, Ret, FutureStorage>,
-    call_sync: Option<CallSync<Arg, Ret>>,
+struct AsyncVTable<
+    Arg: ForLt + 'static,
+    Ret: ForLt + 'static,
+    FutureStorage,
+    Ptr: ForLt = ForFixed<NonNull<()>>,
+> {
+    call: Call<Arg, Ret, FutureStorage, Ptr>,
+    call_sync: Option<CallSync<Arg, Ret, Ptr>>,
     drop_vtable: DropVTable,
 }
 
-impl<Arg: ForLt + 'static, Ret: ForLt + 'static, FutureStorage: StorageMut> VTable
-    for AsyncVTable<Arg, Ret, FutureStorage>
+impl<Arg: ForLt + 'static, Ret: ForLt + 'static, FutureStorage: StorageMut, Ptr: ForLt + 'static>
+    VTable for AsyncVTable<Arg, Ret, FutureStorage, Ptr>
 {
     fn drop_vtable(&self) -> &DropVTable {
         &self.drop_vtable
@@ -462,7 +467,7 @@ pub struct LocalDynAsyncFnOnce<
     FnStorage: StorageMut = DefaultFnStorage,
     FutureStorage: StorageMut = DefaultFutureStorage,
 > {
-    storage: DynStorage<FnStorage, AsyncVTable<Arg, Ret, FutureStorage>>,
+    storage: DynStorage<FnStorage, AsyncVTable<Arg, Ret, FutureStorage, ForRefMut<FnStorage>>>,
     _capture: PhantomData<&'capture ()>,
 }
 
@@ -530,14 +535,14 @@ impl<
         let mut storage = ManuallyDrop::new(self.storage);
         let mut future = MaybeUninit::uninit();
         let vtable =
-            unsafe { (storage.vtable.call)(storage.ptr_mut(), arg, &mut future, PhantomData) };
+            unsafe { (storage.vtable.call)(&mut storage.storage, arg, &mut future, PhantomData) };
         unsafe { poll_future(vtable, &mut future) }.await
     }
 
     pub fn call_sync(self, arg: Arg::Of<'_>) -> Option<Ret::Of<'_>> {
         let call_sync = self.storage.vtable.call_sync?;
         let mut storage = ManuallyDrop::new(self.storage);
-        unsafe { call_sync(storage.ptr_mut(), arg, PhantomData) }.into()
+        unsafe { call_sync(&mut storage.storage, arg, PhantomData) }.into()
     }
 
     pub async fn call_try_sync<'a>(self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
