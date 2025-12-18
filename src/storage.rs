@@ -218,31 +218,42 @@ impl Storage for Arc {}
 #[cfg(feature = "alloc")]
 impl StorageSend for Arc {}
 
-#[cfg(not(feature = "alloc"))]
-pub type RawOrBox<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }> =
-    Raw<SIZE, ALIGN>;
-
-#[cfg(feature = "alloc")]
 #[derive(Debug)]
-pub enum RawOrBox<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }>
+pub enum RawOrBoxInner<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }>
 where
     Align<ALIGN>: Alignment,
 {
     Raw(Raw<SIZE, ALIGN>),
+    #[cfg(feature = "alloc")]
     Box(Box),
 }
 
+#[derive(Debug)]
+pub struct RawOrBox<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }>(
+    RawOrBoxInner<SIZE, ALIGN>,
+)
+where
+    Align<ALIGN>: Alignment;
+
 #[cfg(feature = "alloc")]
+impl<const SIZE: usize, const ALIGN: usize> RawOrBox<SIZE, ALIGN>
+where
+    Align<ALIGN>: Alignment,
+{
+    #[cfg_attr(coverage_nightly, coverage(off))]
+    pub(crate) fn new_box<T>(data: StdBox<T>) -> Self {
+        Self(RawOrBoxInner::Box(Box::new_box(data)))
+    }
+}
+
 impl<const SIZE: usize, const ALIGN: usize> Storage for RawOrBox<SIZE, ALIGN> where
     Align<ALIGN>: Alignment
 {
 }
-#[cfg(feature = "alloc")]
 impl<const SIZE: usize, const ALIGN: usize> StorageMut for RawOrBox<SIZE, ALIGN> where
     Align<ALIGN>: Alignment
 {
 }
-#[cfg(feature = "alloc")]
 impl<const SIZE: usize, const ALIGN: usize> StorageSend for RawOrBox<SIZE, ALIGN> where
     Align<ALIGN>: Alignment
 {
@@ -340,36 +351,45 @@ pub(crate) mod private {
     // so it's not possible to cover all variant for a specific monomorphization.
     // https://github.com/taiki-e/cargo-llvm-cov/issues/394
     #[cfg_attr(coverage_nightly, coverage(off))]
-    #[cfg(feature = "alloc")]
     impl<const SIZE: usize, const ALIGN: usize> Storage for super::RawOrBox<SIZE, ALIGN>
     where
         Align<ALIGN>: Alignment,
     {
         fn new<T>(data: T) -> Self {
+            #[cfg(feature = "alloc")]
             if size_of::<T>() <= SIZE && align_of::<T>() <= ALIGN {
-                Self::Raw(unsafe { super::Raw::new_unchecked(data) })
+                Self(super::RawOrBoxInner::Raw(unsafe {
+                    super::Raw::new_unchecked(data)
+                }))
             } else {
-                Self::Box(super::Box::new(data))
+                Self(super::RawOrBoxInner::Box(super::Box::new(data)))
+            }
+            #[cfg(not(feature = "alloc"))]
+            {
+                Self(super::RawOrBoxInner::Raw(super::Raw::new(data)))
             }
         }
         fn ptr(&self) -> NonNull<()> {
-            match self {
-                Self::Raw(s) => s.ptr(),
-                Self::Box(s) => s.ptr(),
+            match &self.0 {
+                super::RawOrBoxInner::Raw(s) => s.ptr(),
+                #[cfg(feature = "alloc")]
+                super::RawOrBoxInner::Box(s) => s.ptr(),
             }
         }
         fn ptr_mut(&mut self) -> NonNull<()> {
-            match self {
-                Self::Raw(s) => s.ptr_mut(),
-                Self::Box(s) => s.ptr_mut(),
+            match &mut self.0 {
+                super::RawOrBoxInner::Raw(s) => s.ptr_mut(),
+                #[cfg(feature = "alloc")]
+                super::RawOrBoxInner::Box(s) => s.ptr_mut(),
             }
         }
         unsafe fn drop_in_place(&mut self, layout: Layout) {
-            match self {
+            match &mut self.0 {
                 // SAFETY: same precondition
-                Self::Raw(s) => unsafe { s.drop_in_place(layout) },
+                super::RawOrBoxInner::Raw(s) => unsafe { s.drop_in_place(layout) },
+                #[cfg(feature = "alloc")]
                 // SAFETY: same precondition
-                Self::Box(s) => unsafe { s.drop_in_place(layout) },
+                super::RawOrBoxInner::Box(s) => unsafe { s.drop_in_place(layout) },
             }
         }
     }
@@ -431,11 +451,11 @@ mod tests {
             assert!(variant(&storage.storage));
             assert_eq!(unsafe { storage.ptr::<[u8; N]>().read() }, array)
         }
-        check_variant::<4>(|s| matches!(s, super::RawOrBox::Raw(_)));
-        check_variant::<64>(|s| matches!(s, super::RawOrBox::Box(_)));
+        check_variant::<4>(|s| matches!(s.0, super::RawOrBoxInner::Raw(_)));
+        check_variant::<64>(|s| matches!(s.0, super::RawOrBoxInner::Box(_)));
 
         let storage = TestStorage::<super::RawOrBox<8, 1>>::new_test(0u64);
-        assert!(matches!(storage.storage, super::RawOrBox::Box(_)));
+        assert!(matches!(storage.storage.0, super::RawOrBoxInner::Box(_)));
     }
 
     struct SetDropped<'a>(&'a mut bool);

@@ -344,11 +344,16 @@ note: required because it appears within the type `dyn_fn::storage::Box`
    |
    | pub struct Box(NonNull<()>);
    |            ^^^
+note: required because it appears within the type `RawOrBoxInner<128, 8>`
+  --> src/storage.rs
+   |
+   | pub enum RawOrBoxInner<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }>
+   |          ^^^^^^^^^^^^^
 note: required because it appears within the type `RawOrBox<128, 8>`
   --> src/storage.rs
    |
-   | pub enum RawOrBox<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }>
-   |          ^^^^^^^^
+   | pub struct RawOrBox<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }>(
+   |            ^^^^^^^^
 note: required because it appears within the type `ManuallyDrop<RawOrBox<128, 8>>`
   --> $RUST/core/src/mem/manually_drop.rs
    |
@@ -401,11 +406,16 @@ note: required because it appears within the type `dyn_fn::storage::Raw<128, 8>`
    |
    | pub struct Raw<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }>
    |            ^^^
+note: required because it appears within the type `RawOrBoxInner<128, 8>`
+  --> src/storage.rs
+   |
+   | pub enum RawOrBoxInner<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }>
+   |          ^^^^^^^^^^^^^
 note: required because it appears within the type `RawOrBox<128, 8>`
   --> src/storage.rs
    |
-   | pub enum RawOrBox<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }>
-   |          ^^^^^^^^
+   | pub struct RawOrBox<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }>(
+   |            ^^^^^^^^
 note: required because it appears within the type `ManuallyDrop<RawOrBox<128, 8>>`
   --> $RUST/core/src/mem/manually_drop.rs
    |
@@ -660,11 +670,16 @@ note: required because it appears within the type `dyn_fn::storage::Raw<128, 8>`
    |
    | pub struct Raw<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }>
    |            ^^^
+note: required because it appears within the type `RawOrBoxInner<128, 8>`
+  --> src/storage.rs
+   |
+   | pub enum RawOrBoxInner<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }>
+   |          ^^^^^^^^^^^^^
 note: required because it appears within the type `RawOrBox<128, 8>`
   --> src/storage.rs
    |
-   | pub enum RawOrBox<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }>
-   |          ^^^^^^^^
+   | pub struct RawOrBox<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }>(
+   |            ^^^^^^^^
 note: required because it appears within the type `ManuallyDrop<RawOrBox<128, 8>>`
   --> $RUST/core/src/mem/manually_drop.rs
    |
@@ -918,11 +933,16 @@ note: required because it appears within the type `dyn_fn::storage::Raw<128, 8>`
    |
    | pub struct Raw<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }>
    |            ^^^
+note: required because it appears within the type `RawOrBoxInner<128, 8>`
+  --> src/storage.rs
+   |
+   | pub enum RawOrBoxInner<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }>
+   |          ^^^^^^^^^^^^^
 note: required because it appears within the type `RawOrBox<128, 8>`
   --> src/storage.rs
    |
-   | pub enum RawOrBox<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }>
-   |          ^^^^^^^^
+   | pub struct RawOrBox<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }>(
+   |            ^^^^^^^^
 note: required because it appears within the type `ManuallyDrop<RawOrBox<128, 8>>`
   --> $RUST/core/src/mem/manually_drop.rs
    |

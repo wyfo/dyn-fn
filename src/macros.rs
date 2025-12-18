@@ -41,7 +41,7 @@ macro_rules! new_impls {
             pub fn $new_box<F: $($f)*>(
                 f: alloc::boxed::Box<F>,
             ) -> Self {
-                Self::$new_impl::<F>(crate::storage::RawOrBox::Box(crate::storage::Box::new_box(f)))
+                Self::$new_impl::<F>(crate::storage::RawOrBox::new_box(f))
             }
         }
     };
