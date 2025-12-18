@@ -28,6 +28,9 @@ name = "box_dyn_fn"
 harness = false
 required-features = ["alloc"]
 
+[lib]
+bench = false
+
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }
 
