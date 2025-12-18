@@ -64,11 +64,10 @@ fn store_future<
     }
 }
 
-async unsafe fn async_call<'a, FutureStorage: StorageMut, Ret: ForLt + 'static>(
-    call: impl FnOnce(&mut MaybeUninit<FutureStorage>) -> &'static FutureVTable<Ret>,
+async unsafe fn poll_future<'a, FutureStorage: StorageMut, Ret: ForLt + 'static>(
+    vtable: &'static FutureVTable<Ret>,
+    future: &mut MaybeUninit<FutureStorage>,
 ) -> Ret::Of<'a> {
-    let mut future = MaybeUninit::<FutureStorage>::uninit();
-    let vtable = call(&mut future);
     let future = future.as_mut_ptr();
     struct DropGuard<F: FnMut()>(F);
     impl<F: FnMut()> Drop for DropGuard<F> {
@@ -185,10 +184,11 @@ impl<
     }
 
     pub async fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-        let call = |fut: &mut _| unsafe {
-            (self.storage.vtable.call)(self.storage.ptr(), arg, fut, PhantomData)
+        let mut future = MaybeUninit::uninit();
+        let vtable = unsafe {
+            (self.storage.vtable.call)(self.storage.ptr(), arg, &mut future, PhantomData)
         };
-        unsafe { async_call(call) }.await
+        unsafe { poll_future(vtable, &mut future) }.await
     }
 
     // TODO I've no idea why this code is not fully covered when alloc feature is enabled
@@ -343,10 +343,11 @@ impl<
     }
 
     pub async fn call<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-        let call = |fut: &mut _| unsafe {
-            (self.storage.vtable.call)(self.storage.ptr_mut(), arg, fut, PhantomData)
+        let mut future = MaybeUninit::uninit();
+        let vtable = unsafe {
+            (self.storage.vtable.call)(self.storage.ptr_mut(), arg, &mut future, PhantomData)
         };
-        unsafe { async_call(call) }.await
+        unsafe { poll_future(vtable, &mut future) }.await
     }
 
     pub fn call_sync<'a>(&mut self, arg: Arg::Of<'a>) -> Option<Ret::Of<'a>> {
@@ -482,10 +483,10 @@ impl<
 
     pub async fn call<'a>(self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
         let mut storage = ManuallyDrop::new(self.storage);
-        let call = |fut: &mut _| unsafe {
-            (storage.vtable.call)(storage.ptr_mut(), arg, fut, PhantomData)
-        };
-        unsafe { async_call(call) }.await
+        let mut future = MaybeUninit::uninit();
+        let vtable =
+            unsafe { (storage.vtable.call)(storage.ptr_mut(), arg, &mut future, PhantomData) };
+        unsafe { poll_future(vtable, &mut future) }.await
     }
 
     pub fn call_sync(self, arg: Arg::Of<'_>) -> Option<Ret::Of<'_>> {
