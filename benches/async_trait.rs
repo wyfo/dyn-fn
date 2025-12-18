@@ -1,9 +1,12 @@
-use std::hint::black_box;
+use std::{
+    hint::black_box,
+    pin::pin,
+    task::{Context, Poll, Waker},
+};
 
 use async_trait::async_trait;
 use divan::Bencher;
 use dyn_fn::{LocalDynAsyncFn, storage};
-use futures_util::FutureExt;
 use higher_kinded_types::{ForFixed, ForRef};
 
 struct Foo;
@@ -18,6 +21,20 @@ impl Bar for Foo {
         arg.len()
     }
 }
+
+// `futures::future::FutureExt::now_or_never` was not inlined, and it was messing
+// the results up, with `dyn_async_trait` as fast as `dyn_async_fn`
+pub trait FutureExt: Future + Sized {
+    #[inline(always)]
+    fn now_or_never(self) -> Option<Self::Output> {
+        match pin!(self).poll(&mut Context::from_waker(Waker::noop())) {
+            Poll::Ready(x) => Some(x),
+            _ => None,
+        }
+    }
+}
+
+impl<F: Future> FutureExt for F {}
 
 #[divan::bench]
 fn dyn_async_trait(b: Bencher) {
