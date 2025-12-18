@@ -110,10 +110,8 @@ impl<S: StorageMut, T> Drop for StorageMoved<S, T> {
 
 #[derive(Debug)]
 #[repr(C)]
-pub struct Raw<
-    const SIZE: usize = { size_of::<usize>() },
-    const ALIGN: usize = { align_of::<usize>() },
-> where
+pub struct Raw<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }>
+where
     Align<ALIGN>: Alignment,
 {
     data: MaybeUninit<[u8; SIZE]>,
