@@ -1,7 +1,9 @@
 #[cfg(feature = "alloc")]
 use alloc::{boxed::Box as StdBox, sync::Arc as StdArc};
 use core::{
+    alloc::Layout,
     marker::{PhantomData, PhantomPinned},
+    mem,
     mem::MaybeUninit,
     ptr::NonNull,
 };
@@ -17,8 +19,37 @@ pub type DefaultFutureStorage = RawOrBox<{ 16 * size_of::<usize>() }>;
 pub trait Storage: private::Storage {}
 pub trait StorageMut: Storage + private::StorageMut {}
 
-pub trait VTable: 'static {
-    fn drop(&self) -> unsafe fn(NonNull<()>);
+pub(crate) struct DropVTable {
+    drop_inner: Option<unsafe fn(NonNull<()>)>,
+    layout: Layout,
+}
+
+impl DropVTable {
+    #[cfg_attr(coverage_nightly, coverage(off))] // const fn
+    pub(crate) const fn new<S: Storage, T>() -> Self {
+        Self {
+            drop_inner: const {
+                if S::NEEDS_DROP_INNER || mem::needs_drop::<T>() {
+                    Some(S::drop_inner::<T>)
+                } else {
+                    None
+                }
+            },
+            layout: const { Layout::new::<T>() },
+        }
+    }
+
+    #[cfg_attr(coverage_nightly, coverage(off))]
+    pub(crate) unsafe fn drop_storage(&self, storage: &mut impl Storage) {
+        if let Some(drop_inner) = self.drop_inner {
+            unsafe { drop_inner(storage.ptr_mut()) };
+        }
+        unsafe { storage.drop_in_place(self.layout) };
+    }
+}
+
+pub(crate) trait VTable: 'static {
+    fn drop_vtable(&self) -> &DropVTable;
 }
 
 #[derive(Debug)]
@@ -39,7 +70,7 @@ impl<S: Storage, VT: VTable> DynStorage<S, VT> {
 
 impl<S: Storage, VT: VTable> Drop for DynStorage<S, VT> {
     fn drop(&mut self) {
-        unsafe { self.vtable.drop()(self.storage.ptr_mut()) }
+        unsafe { self.vtable.drop_vtable().drop_storage(&mut self.storage) }
     }
 }
 
@@ -186,15 +217,19 @@ impl<const SIZE: usize, const ALIGN: usize> StorageMut for RawOrBox<SIZE, ALIGN>
 pub(crate) mod private {
     #[cfg(feature = "alloc")]
     use alloc::{boxed::Box, sync::Arc};
-    use core::{mem::MaybeUninit, ptr::NonNull};
+    use core::{alloc::Layout, mem::MaybeUninit, ptr::NonNull};
 
     use elain::{Align, Alignment};
 
     pub trait Storage: Sized + 'static {
+        const NEEDS_DROP_INNER: bool = false;
         fn new<T>(data: T) -> Self;
         fn ptr(&self) -> NonNull<()>;
         fn ptr_mut(&mut self) -> NonNull<()>;
-        unsafe fn drop<T>(ptr_mut: NonNull<()>);
+        unsafe fn drop_inner<T>(ptr_mut: NonNull<()>) {
+            unsafe { ptr_mut.cast::<T>().drop_in_place() }
+        }
+        unsafe fn drop_in_place(&mut self, layout: Layout);
     }
 
     pub trait StorageMut: Storage {
@@ -214,9 +249,7 @@ pub(crate) mod private {
         fn ptr_mut(&mut self) -> NonNull<()> {
             NonNull::from(&mut self.data).cast()
         }
-        unsafe fn drop<T>(ptr_mut: NonNull<()>) {
-            unsafe { ptr_mut.cast::<T>().drop_in_place() }
-        }
+        unsafe fn drop_in_place(&mut self, _layout: Layout) {}
     }
 
     impl<const SIZE: usize, const ALIGN: usize> StorageMut for super::Raw<SIZE, ALIGN>
@@ -237,8 +270,10 @@ pub(crate) mod private {
         fn ptr_mut(&mut self) -> NonNull<()> {
             self.0
         }
-        unsafe fn drop<T>(ptr_mut: NonNull<()>) {
-            drop(unsafe { Box::<T>::from_raw(ptr_mut.cast().as_ptr()) })
+        unsafe fn drop_in_place(&mut self, layout: Layout) {
+            if layout.size() != 0 {
+                unsafe { alloc::alloc::dealloc(self.0.as_ptr().cast(), layout) };
+            }
         }
     }
     #[cfg(feature = "alloc")]
@@ -250,6 +285,7 @@ pub(crate) mod private {
 
     #[cfg(feature = "alloc")]
     impl Storage for super::Arc {
+        const NEEDS_DROP_INNER: bool = true;
         fn new<T>(data: T) -> Self {
             Self::new_arc(Arc::new(data))
         }
@@ -259,19 +295,21 @@ pub(crate) mod private {
         fn ptr_mut(&mut self) -> NonNull<()> {
             self.0
         }
-        unsafe fn drop<T>(ptr_mut: NonNull<()>) {
+        unsafe fn drop_inner<T>(ptr_mut: NonNull<()>) {
             drop(unsafe { Arc::<T>::from_raw(ptr_mut.cast().as_ptr()) });
         }
+        unsafe fn drop_in_place(&mut self, _layout: Layout) {}
     }
 
+    // This enum is generic and the variant is chosen according constant predicate,
+    // so it's not possible to cover all variant for a specific monomorphization.
+    // https://github.com/taiki-e/cargo-llvm-cov/issues/394
+    #[cfg_attr(coverage_nightly, coverage(off))]
     #[cfg(feature = "alloc")]
     impl<const SIZE: usize, const ALIGN: usize> Storage for super::RawOrBox<SIZE, ALIGN>
     where
         Align<ALIGN>: Alignment,
     {
-        // It prevents 100% coverage, maybe because of
-        // https://github.com/taiki-e/cargo-llvm-cov/issues/394
-        #[cfg_attr(coverage_nightly, coverage(off))]
         fn new<T>(data: T) -> Self {
             if size_of::<T>() <= SIZE && align_of::<T>() <= ALIGN {
                 Self::Raw(unsafe { super::Raw::new_unchecked(data) })
@@ -291,23 +329,21 @@ pub(crate) mod private {
                 Self::Box(s) => s.ptr_mut(),
             }
         }
-        #[cfg_attr(coverage_nightly, coverage(off))] // See new
-        unsafe fn drop<T>(ptr_mut: NonNull<()>) {
-            if size_of::<T>() <= SIZE && align_of::<T>() <= ALIGN {
+        unsafe fn drop_in_place(&mut self, layout: Layout) {
+            match self {
                 // SAFETY: same precondition
-                unsafe { super::Raw::<SIZE, ALIGN>::drop::<T>(ptr_mut) };
-            } else {
+                Self::Raw(s) => unsafe { s.drop_in_place(layout) },
                 // SAFETY: same precondition
-                unsafe { super::Box::drop::<T>(ptr_mut) };
+                Self::Box(s) => unsafe { s.drop_in_place(layout) },
             }
         }
     }
+    #[cfg_attr(coverage_nightly, coverage(off))] // See Storage
     #[cfg(feature = "alloc")]
     impl<const SIZE: usize, const ALIGN: usize> StorageMut for super::RawOrBox<SIZE, ALIGN>
     where
         Align<ALIGN>: Alignment,
     {
-        #[cfg_attr(coverage_nightly, coverage(off))] // See new
         unsafe fn drop_moved<T>(ptr_mut: NonNull<MaybeUninit<T>>) {
             if size_of::<T>() <= SIZE && align_of::<T>() <= ALIGN {
                 // SAFETY: same precondition
@@ -323,26 +359,23 @@ pub(crate) mod private {
 #[cfg_attr(coverage_nightly, coverage(off))]
 #[cfg(test)]
 mod tests {
-    use core::{mem, mem::ManuallyDrop, ptr::NonNull};
+    use core::{mem, mem::ManuallyDrop};
 
     use elain::{Align, Alignment};
 
-    use crate::storage::{DynStorage, Storage, StorageMoved, StorageMut, VTable};
+    use crate::storage::{DropVTable, DynStorage, Storage, StorageMoved, StorageMut, VTable};
 
-    struct TestVTable {
-        drop: unsafe fn(NonNull<()>),
-    }
-    impl VTable for TestVTable {
-        fn drop(&self) -> unsafe fn(NonNull<()>) {
-            self.drop
+    impl VTable for DropVTable {
+        fn drop_vtable(&self) -> &DropVTable {
+            self
         }
     }
-    type TestStorage<S> = DynStorage<S, TestVTable>;
+    type TestStorage<S> = DynStorage<S, DropVTable>;
     impl<S: Storage> TestStorage<S> {
         fn new_test<T>(data: T) -> Self {
             Self {
                 storage: S::new(data),
-                vtable: &TestVTable { drop: S::drop::<T> },
+                vtable: &const { DropVTable::new::<S, T>() },
             }
         }
     }
@@ -430,6 +463,22 @@ mod tests {
         check_drop_moved::<super::RawOrBox<{ size_of::<SetDropped>() }>>();
         #[cfg(feature = "alloc")]
         check_drop_moved::<super::RawOrBox<0>>();
+    }
+
+    #[test]
+    fn storage_dst() {
+        fn check_dst<S: Storage>() {
+            drop(TestStorage::<S>::new_test(()));
+        }
+        check_dst::<super::Raw<{ size_of::<SetDropped>() }, { align_of::<SetDropped>() }>>();
+        #[cfg(feature = "alloc")]
+        check_dst::<super::Box>();
+        #[cfg(feature = "alloc")]
+        check_dst::<super::RawOrBox<{ size_of::<SetDropped>() }>>();
+        #[cfg(feature = "alloc")]
+        check_dst::<super::RawOrBox<0>>();
+        #[cfg(feature = "alloc")]
+        check_dst::<super::Arc>();
     }
 
     #[cfg(feature = "alloc")]

@@ -13,8 +13,8 @@ use higher_kinded_types::{ForFixed, ForLt};
 use crate::{
     macros::{impl_debug, new_impls, unsafe_impl_send_sync},
     storage::{
-        DefaultFnStorage, DefaultFutureStorage, DynStorage, Storage, StorageMoved, StorageMut,
-        VTable,
+        DefaultFnStorage, DefaultFutureStorage, DropVTable, DynStorage, Storage, StorageMoved,
+        StorageMut, VTable,
     },
 };
 
@@ -40,7 +40,7 @@ type PollFn<Ret: ForLt> =
 
 struct FutureVTable<Ret: ForLt> {
     poll: PollFn<Ret>,
-    drop: unsafe fn(NonNull<()>),
+    drop_vtable: DropVTable,
 }
 
 #[cfg_attr(coverage_nightly, coverage(off))]
@@ -60,7 +60,7 @@ fn store_future<
                 Pin::new_unchecked(fut.cast::<Fut>().as_mut()).poll(cx),
             )
         },
-        drop: FutureStorage::drop::<Fut>,
+        drop_vtable: const { DropVTable::new::<FutureStorage, Fut>() },
     }
 }
 
@@ -69,15 +69,15 @@ async unsafe fn async_call<'a, FutureStorage: StorageMut, Ret: ForLt + 'static>(
 ) -> Ret::Of<'a> {
     let mut future = MaybeUninit::<FutureStorage>::uninit();
     let vtable = call(&mut future);
-    let future_ptr = unsafe { future.assume_init_mut().ptr_mut() };
+    let future = future.as_mut_ptr();
     struct DropGuard<F: FnMut()>(F);
     impl<F: FnMut()> Drop for DropGuard<F> {
         fn drop(&mut self) {
             self.0();
         }
     }
-    let _guard = DropGuard(|| unsafe { (vtable.drop)(future_ptr) });
-    poll_fn(|cx| unsafe { (vtable.poll)(future_ptr, cx, PhantomData) }).await
+    let _guard = DropGuard(|| unsafe { vtable.drop_vtable.drop_storage(&mut *future) });
+    poll_fn(|cx| unsafe { (vtable.poll)((*future).ptr_mut(), cx, PhantomData) }).await
 }
 
 #[expect(type_alias_bounds)]
@@ -96,14 +96,14 @@ type CallSync<Arg: ForLt + 'static, Ret: ForLt> =
 struct AsyncVTable<Arg: ForLt + 'static, Ret: ForLt + 'static, FutureStorage> {
     call: Call<Arg, Ret, FutureStorage>,
     call_sync: Option<CallSync<Arg, Ret>>,
-    drop: unsafe fn(NonNull<()>),
+    drop_vtable: DropVTable,
 }
 
 impl<Arg: ForLt + 'static, Ret: ForLt + 'static, FutureStorage: StorageMut> VTable
     for AsyncVTable<Arg, Ret, FutureStorage>
 {
-    fn drop(&self) -> unsafe fn(NonNull<()>) {
-        self.drop
+    fn drop_vtable(&self) -> &DropVTable {
+        &self.drop_vtable
     }
 }
 struct SendFuture<F>(F);
@@ -153,7 +153,7 @@ impl<
                         store_future(fut, unsafe { func.cast::<F>().as_ref()(arg, PhantomData) })
                     },
                     call_sync: None,
-                    drop: FnStorage::drop::<F>,
+                    drop_vtable: const { DropVTable::new::<FnStorage, F>() },
                 },
             },
             _capture: PhantomData,
@@ -177,7 +177,7 @@ impl<
                     call_sync: Some(|func, arg, _| unsafe {
                         func.cast::<F>().as_ref()(arg, PhantomData)
                     }),
-                    drop: FnStorage::drop::<F>,
+                    drop_vtable: const { DropVTable::new::<FnStorage, F>() },
                 },
             },
             _capture: PhantomData,
@@ -242,7 +242,7 @@ impl<
                         store_future(fut, unsafe { func.cast::<F>().as_ref().call(arg) })
                     },
                     call_sync: None,
-                    drop: FnStorage::drop::<F>,
+                    drop_vtable: const { DropVTable::new::<FnStorage, F>() },
                 },
             },
             _capture: PhantomData,
@@ -311,7 +311,7 @@ impl<
                         store_future(fut, unsafe { func.cast::<F>().as_mut()(arg, PhantomData) })
                     },
                     call_sync: None,
-                    drop: FnStorage::drop::<F>,
+                    drop_vtable: const { DropVTable::new::<FnStorage, F>() },
                 },
             },
             _capture: PhantomData,
@@ -335,7 +335,7 @@ impl<
                     call_sync: Some(|func, arg, _| unsafe {
                         func.cast::<F>().as_mut()(arg, PhantomData)
                     }),
-                    drop: FnStorage::drop::<F>,
+                    drop_vtable: const { DropVTable::new::<FnStorage, F>() },
                 },
             },
             _capture: PhantomData,
@@ -385,7 +385,7 @@ impl<
                         store_future(fut, unsafe { func.cast::<F>().as_mut().call(arg) })
                     },
                     call_sync: None,
-                    drop: FnStorage::drop::<F>,
+                    drop_vtable: const { DropVTable::new::<FnStorage, F>() },
                 },
             },
             _capture: PhantomData,
@@ -447,7 +447,7 @@ impl<
                         })
                     },
                     call_sync: None,
-                    drop: FnStorage::drop::<F>,
+                    drop_vtable: const { DropVTable::new::<FnStorage, F>() },
                 },
             },
             _capture: PhantomData,
@@ -473,7 +473,7 @@ impl<
                     call_sync: Some(|func, arg, _| unsafe {
                         StorageMoved::<FnStorage, F>::new(func).read()(arg, PhantomData)
                     }),
-                    drop: FnStorage::drop::<F>,
+                    drop_vtable: const { DropVTable::new::<FnStorage, F>() },
                 },
             },
             _capture: PhantomData,
@@ -528,7 +528,7 @@ impl<
                         })
                     },
                     call_sync: None,
-                    drop: FnStorage::drop::<F>,
+                    drop_vtable: const { DropVTable::new::<FnStorage, F>() },
                 },
             },
             _capture: PhantomData,

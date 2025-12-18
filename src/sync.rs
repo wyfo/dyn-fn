@@ -4,7 +4,9 @@ use higher_kinded_types::{ForFixed, ForLt};
 
 use crate::{
     macros::{impl_debug, new_impls, unsafe_impl_send_sync},
-    storage::{DefaultFnStorage, DynStorage, Storage, StorageMoved, StorageMut, VTable},
+    storage::{
+        DefaultFnStorage, DropVTable, DynStorage, Storage, StorageMoved, StorageMut, VTable,
+    },
 };
 
 #[expect(type_alias_bounds)]
@@ -13,12 +15,12 @@ type Call<Arg: ForLt, Ret: ForLt> =
 
 struct SyncVTable<Arg: ForLt, Ret: ForLt> {
     call: Call<Arg, Ret>,
-    drop: unsafe fn(NonNull<()>),
+    drop_vtable: DropVTable,
 }
 
 impl<Arg: ForLt + 'static, Ret: ForLt + 'static> VTable for SyncVTable<Arg, Ret> {
-    fn drop(&self) -> unsafe fn(NonNull<()>) {
-        self.drop
+    fn drop_vtable(&self) -> &DropVTable {
+        &self.drop_vtable
     }
 }
 
@@ -40,7 +42,7 @@ impl<'capture, Arg: ForLt + 'static, Ret: ForLt + 'static, FnStorage: Storage>
     ) -> Self {
         let vtable = &SyncVTable {
             call: |func, arg, _| unsafe { func.cast::<F>().as_ref()(arg, PhantomData) },
-            drop: FnStorage::drop::<F>,
+            drop_vtable: const { DropVTable::new::<FnStorage, F>() },
         };
         Self {
             storage: DynStorage { storage, vtable },
@@ -126,7 +128,7 @@ impl<'capture, Arg: ForLt + 'static, Ret: ForLt + 'static, FnStorage: StorageMut
     ) -> Self {
         let vtable = &SyncVTable {
             call: |func, arg, _| unsafe { func.cast::<F>().as_mut()(arg, PhantomData) },
-            drop: FnStorage::drop::<F>,
+            drop_vtable: const { DropVTable::new::<FnStorage, F>() },
         };
         Self {
             storage: DynStorage { storage, vtable },
@@ -194,7 +196,7 @@ impl<'capture, Arg: ForLt + 'static, Ret: ForLt + 'static, FnStorage: StorageMut
             call: |func, arg, _| unsafe {
                 StorageMoved::<FnStorage, F>::new(func).read()(arg, PhantomData)
             },
-            drop: FnStorage::drop::<F>,
+            drop_vtable: const { DropVTable::new::<FnStorage, F>() },
         };
         Self {
             storage: DynStorage { storage, vtable },

@@ -238,11 +238,11 @@ note: required by a bound in `assert_sync`
  4 | fn assert_sync<T: Send>(_: &T) {}
    |                   ^^^^ required by this bound in `assert_sync`
 
-error[E0277]: `NonNull<()>` cannot be sent between threads safely
+error[E0277]: `*mut RawOrBox<128, 8>` cannot be sent between threads safely
   --> tests/compilation/local.rs:24:17
    |
 24 |     assert_send(&f.call("test"));
-   |     ----------- ^^^^^^^^^^^^^^^ `NonNull<()>` cannot be sent between threads safely
+   |     ----------- ^^^^^^^^^^^^^^^ `*mut RawOrBox<128, 8>` cannot be sent between threads safely
    |     |
    |     required by a bound introduced by this call
    |
@@ -251,7 +251,7 @@ error[E0277]: `NonNull<()>` cannot be sent between threads safely
    |     pub async fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
    |     ------------------------------------------------------------- within this `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`
    |
-   = help: within `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`, the trait `Send` is not implemented for `NonNull<()>`
+   = help: within `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`, the trait `Send` is not implemented for `*mut RawOrBox<128, 8>`
 note: required because it's used within this `async` fn body
   --> src/async.rs
    |
@@ -259,9 +259,9 @@ note: required because it's used within this `async` fn body
    |  __________________^
    | |     let mut future = MaybeUninit::<FutureStorage>::uninit();
    | |     let vtable = call(&mut future);
-   | |     let future_ptr = unsafe { future.assume_init_mut().ptr_mut() };
+   | |     let future = future.as_mut_ptr();
 ...  |
-   | |     poll_fn(|cx| unsafe { (vtable.poll)(future_ptr, cx, PhantomData) }).await
+   | |     poll_fn(|cx| unsafe { (vtable.poll)((*future).ptr_mut(), cx, PhantomData) }).await
    | | }
    | |_^
 note: required because it's used within this `async` fn body
@@ -306,6 +306,118 @@ note: required because it appears within the type `dyn_fn::LocalDynAsyncFn<'_, d
    | pub struct LocalDynAsyncFn<
    |            ^^^^^^^^^^^^^^^
    = note: required for `&dyn_fn::LocalDynAsyncFn<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>` to implement `Send`
+note: required because it's used within this `async` fn body
+  --> src/async.rs
+   |
+   |       pub async fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
+   |  ___________________________________________________________________^
+   | |         let call = |fut: &mut _| unsafe {
+   | |             (self.storage.vtable.call)(self.storage.ptr(), arg, fut, PhantomData)
+   | |         };
+   | |         unsafe { async_call(call) }.await
+   | |     }
+   | |_____^
+note: required by a bound in `assert_send`
+  --> tests/compilation/local.rs:3:19
+   |
+ 3 | fn assert_send<T: Send>(_: &T) {}
+   |                   ^^^^ required by this bound in `assert_send`
+
+error[E0277]: `NonNull<()>` cannot be sent between threads safely
+  --> tests/compilation/local.rs:24:17
+   |
+24 |     assert_send(&f.call("test"));
+   |     ----------- ^^^^^^^^^^^^^^^ `NonNull<()>` cannot be sent between threads safely
+   |     |
+   |     required by a bound introduced by this call
+   |
+  ::: src/async.rs
+   |
+   |     pub async fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
+   |     ------------------------------------------------------------- within this `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`
+   |
+   = help: within `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`, the trait `Send` is not implemented for `NonNull<()>`
+note: required because it appears within the type `dyn_fn::storage::Box`
+  --> src/storage.rs
+   |
+   | pub struct Box(NonNull<()>);
+   |            ^^^
+note: required because it appears within the type `RawOrBox<128, 8>`
+  --> src/storage.rs
+   |
+   | pub enum RawOrBox<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }>
+   |          ^^^^^^^^
+note: required because it appears within the type `ManuallyDrop<RawOrBox<128, 8>>`
+  --> $RUST/core/src/mem/manually_drop.rs
+   |
+   | pub struct ManuallyDrop<T: ?Sized> {
+   |            ^^^^^^^^^^^^
+note: required because it appears within the type `MaybeUninit<RawOrBox<128, 8>>`
+  --> $RUST/core/src/mem/maybe_uninit.rs
+   |
+   | pub union MaybeUninit<T> {
+   |           ^^^^^^^^^^^
+note: required because it's used within this `async` fn body
+  --> src/async.rs
+   |
+   |   ) -> Ret::Of<'a> {
+   |  __________________^
+   | |     let mut future = MaybeUninit::<FutureStorage>::uninit();
+   | |     let vtable = call(&mut future);
+   | |     let future = future.as_mut_ptr();
+...  |
+   | |     poll_fn(|cx| unsafe { (vtable.poll)((*future).ptr_mut(), cx, PhantomData) }).await
+   | | }
+   | |_^
+note: required because it's used within this `async` fn body
+  --> src/async.rs
+   |
+   |       pub async fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
+   |  ___________________________________________________________________^
+   | |         let call = |fut: &mut _| unsafe {
+   | |             (self.storage.vtable.call)(self.storage.ptr(), arg, fut, PhantomData)
+   | |         };
+   | |         unsafe { async_call(call) }.await
+   | |     }
+   | |_____^
+note: required by a bound in `assert_send`
+  --> tests/compilation/local.rs:3:19
+   |
+ 3 | fn assert_send<T: Send>(_: &T) {}
+   |                   ^^^^ required by this bound in `assert_send`
+
+error[E0277]: `*mut RawOrBox<128, 8>` cannot be shared between threads safely
+  --> tests/compilation/local.rs:24:17
+   |
+24 |     assert_send(&f.call("test"));
+   |     ----------- ^^^^^^^^^^^^^^^ `*mut RawOrBox<128, 8>` cannot be shared between threads safely
+   |     |
+   |     required by a bound introduced by this call
+   |
+   = help: the trait `Sync` is not implemented for `*mut RawOrBox<128, 8>`
+   = note: required for `&*mut RawOrBox<128, 8>` to implement `Send`
+note: required because it's used within this closure
+  --> src/async.rs
+   |
+   |     let _guard = DropGuard(|| unsafe { vtable.drop_vtable.drop_storage(&mut *future) });
+   |                            ^^
+note: required because it appears within the type `dyn_fn::r#async::async_call::{closure#0}::DropGuard<{closure@dyn_fn::r#async::async_call<'_, RawOrBox<128, 8>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, {closure@dyn_fn::LocalDynAsyncFn<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>::call<'_>::{closure#0}::{closure#0}}>::{closure#0}::{closure#0}}>`
+  --> src/async.rs
+   |
+   |     struct DropGuard<F: FnMut()>(F);
+   |            ^^^^^^^^^
+note: required because it's used within this `async` fn body
+  --> src/async.rs
+   |
+   |   ) -> Ret::Of<'a> {
+   |  __________________^
+   | |     let mut future = MaybeUninit::<FutureStorage>::uninit();
+   | |     let vtable = call(&mut future);
+   | |     let future = future.as_mut_ptr();
+...  |
+   | |     poll_fn(|cx| unsafe { (vtable.poll)((*future).ptr_mut(), cx, PhantomData) }).await
+   | | }
+   | |_^
 note: required because it's used within this `async` fn body
   --> src/async.rs
    |
@@ -369,9 +481,9 @@ note: required because it's used within this `async` fn body
    |  __________________^
    | |     let mut future = MaybeUninit::<FutureStorage>::uninit();
    | |     let vtable = call(&mut future);
-   | |     let future_ptr = unsafe { future.assume_init_mut().ptr_mut() };
+   | |     let future = future.as_mut_ptr();
 ...  |
-   | |     poll_fn(|cx| unsafe { (vtable.poll)(future_ptr, cx, PhantomData) }).await
+   | |     poll_fn(|cx| unsafe { (vtable.poll)((*future).ptr_mut(), cx, PhantomData) }).await
    | | }
    | |_^
 note: required because it's used within this `async` fn body
@@ -451,11 +563,11 @@ note: required by a bound in `assert_sync`
  4 | fn assert_sync<T: Send>(_: &T) {}
    |                   ^^^^ required by this bound in `assert_sync`
 
-error[E0277]: `NonNull<()>` cannot be sent between threads safely
+error[E0277]: `*mut RawOrBox<128, 8>` cannot be sent between threads safely
   --> tests/compilation/local.rs:30:17
    |
 30 |     assert_send(&f.call("test"));
-   |     ----------- ^^^^^^^^^^^^^^^ `NonNull<()>` cannot be sent between threads safely
+   |     ----------- ^^^^^^^^^^^^^^^ `*mut RawOrBox<128, 8>` cannot be sent between threads safely
    |     |
    |     required by a bound introduced by this call
    |
@@ -464,7 +576,7 @@ error[E0277]: `NonNull<()>` cannot be sent between threads safely
    |     pub async fn call<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
    |     ----------------------------------------------------------------- within this `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`
    |
-   = help: within `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`, the trait `Send` is not implemented for `NonNull<()>`
+   = help: within `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`, the trait `Send` is not implemented for `*mut RawOrBox<128, 8>`
 note: required because it's used within this `async` fn body
   --> src/async.rs
    |
@@ -472,9 +584,9 @@ note: required because it's used within this `async` fn body
    |  __________________^
    | |     let mut future = MaybeUninit::<FutureStorage>::uninit();
    | |     let vtable = call(&mut future);
-   | |     let future_ptr = unsafe { future.assume_init_mut().ptr_mut() };
+   | |     let future = future.as_mut_ptr();
 ...  |
-   | |     poll_fn(|cx| unsafe { (vtable.poll)(future_ptr, cx, PhantomData) }).await
+   | |     poll_fn(|cx| unsafe { (vtable.poll)((*future).ptr_mut(), cx, PhantomData) }).await
    | | }
    | |_^
 note: required because it's used within this `async` fn body
@@ -494,20 +606,67 @@ note: required by a bound in `assert_send`
  3 | fn assert_send<T: Send>(_: &T) {}
    |                   ^^^^ required by this bound in `assert_send`
 
-error[E0277]: `NonNull<()>` cannot be shared between threads safely
+error[E0277]: `NonNull<()>` cannot be sent between threads safely
   --> tests/compilation/local.rs:30:17
    |
 30 |     assert_send(&f.call("test"));
-   |     ----------- ^^^^^^^^^^^^^^^ `NonNull<()>` cannot be shared between threads safely
+   |     ----------- ^^^^^^^^^^^^^^^ `NonNull<()>` cannot be sent between threads safely
    |     |
    |     required by a bound introduced by this call
    |
-   = help: the trait `Sync` is not implemented for `NonNull<()>`
-   = note: required for `&NonNull<()>` to implement `Send`
+  ::: src/async.rs
+   |
+   |     pub async fn call<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
+   |     ----------------------------------------------------------------- within this `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`
+   |
+   = help: within `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`, the trait `Send` is not implemented for `NonNull<()>`
+note: required because it appears within the type `dyn_fn::storage::Box`
+  --> src/storage.rs
+   |
+   | pub struct Box(NonNull<()>);
+   |            ^^^
+note: required because it appears within the type `storage::DynStorage<dyn_fn::storage::Box, dyn_fn::r#async::AsyncVTable<dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, RawOrBox<128, 8>>>`
+  --> src/storage.rs
+   |
+   | pub(crate) struct DynStorage<S: Storage, VT: VTable> {
+   |                   ^^^^^^^^^^
+note: required because it appears within the type `dyn_fn::LocalDynAsyncFnMut<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>`
+  --> src/async.rs
+   |
+   | pub struct LocalDynAsyncFnMut<
+   |            ^^^^^^^^^^^^^^^^^^
+   = note: required because it appears within the type `&mut dyn_fn::LocalDynAsyncFnMut<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>`
+note: required because it's used within this `async` fn body
+  --> src/async.rs
+   |
+   |       pub async fn call<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
+   |  _______________________________________________________________________^
+   | |         let call = |fut: &mut _| unsafe {
+   | |             (self.storage.vtable.call)(self.storage.ptr_mut(), arg, fut, PhantomData)
+   | |         };
+   | |         unsafe { async_call(call) }.await
+   | |     }
+   | |_____^
+note: required by a bound in `assert_send`
+  --> tests/compilation/local.rs:3:19
+   |
+ 3 | fn assert_send<T: Send>(_: &T) {}
+   |                   ^^^^ required by this bound in `assert_send`
+
+error[E0277]: `*mut RawOrBox<128, 8>` cannot be shared between threads safely
+  --> tests/compilation/local.rs:30:17
+   |
+30 |     assert_send(&f.call("test"));
+   |     ----------- ^^^^^^^^^^^^^^^ `*mut RawOrBox<128, 8>` cannot be shared between threads safely
+   |     |
+   |     required by a bound introduced by this call
+   |
+   = help: the trait `Sync` is not implemented for `*mut RawOrBox<128, 8>`
+   = note: required for `&*mut RawOrBox<128, 8>` to implement `Send`
 note: required because it's used within this closure
   --> src/async.rs
    |
-   |     let _guard = DropGuard(|| unsafe { (vtable.drop)(future_ptr) });
+   |     let _guard = DropGuard(|| unsafe { vtable.drop_vtable.drop_storage(&mut *future) });
    |                            ^^
 note: required because it appears within the type `dyn_fn::r#async::async_call::{closure#0}::DropGuard<{closure@dyn_fn::r#async::async_call<'_, RawOrBox<128, 8>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, {closure@dyn_fn::LocalDynAsyncFnMut<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>::call<'_>::{closure#0}::{closure#0}}>::{closure#0}::{closure#0}}>`
   --> src/async.rs
@@ -521,9 +680,9 @@ note: required because it's used within this `async` fn body
    |  __________________^
    | |     let mut future = MaybeUninit::<FutureStorage>::uninit();
    | |     let vtable = call(&mut future);
-   | |     let future_ptr = unsafe { future.assume_init_mut().ptr_mut() };
+   | |     let future = future.as_mut_ptr();
 ...  |
-   | |     poll_fn(|cx| unsafe { (vtable.poll)(future_ptr, cx, PhantomData) }).await
+   | |     poll_fn(|cx| unsafe { (vtable.poll)((*future).ptr_mut(), cx, PhantomData) }).await
    | | }
    | |_^
 note: required because it's used within this `async` fn body
@@ -589,9 +748,9 @@ note: required because it's used within this `async` fn body
    |  __________________^
    | |     let mut future = MaybeUninit::<FutureStorage>::uninit();
    | |     let vtable = call(&mut future);
-   | |     let future_ptr = unsafe { future.assume_init_mut().ptr_mut() };
+   | |     let future = future.as_mut_ptr();
 ...  |
-   | |     poll_fn(|cx| unsafe { (vtable.poll)(future_ptr, cx, PhantomData) }).await
+   | |     poll_fn(|cx| unsafe { (vtable.poll)((*future).ptr_mut(), cx, PhantomData) }).await
    | | }
    | |_^
 note: required because it's used within this `async` fn body
@@ -718,20 +877,64 @@ note: required by a bound in `assert_send`
  3 | fn assert_send<T: Send>(_: &T) {}
    |                   ^^^^ required by this bound in `assert_send`
 
-error[E0277]: `NonNull<()>` cannot be shared between threads safely
+error[E0277]: `*mut RawOrBox<128, 8>` cannot be sent between threads safely
   --> tests/compilation/local.rs:36:17
    |
 36 |     assert_send(&f.call("test"));
-   |     ----------- ^^^^^^^^^^^^^^^ `NonNull<()>` cannot be shared between threads safely
+   |     ----------- ^^^^^^^^^^^^^^^ `*mut RawOrBox<128, 8>` cannot be sent between threads safely
    |     |
    |     required by a bound introduced by this call
    |
-   = help: the trait `Sync` is not implemented for `NonNull<()>`
-   = note: required for `&NonNull<()>` to implement `Send`
+  ::: src/async.rs
+   |
+   |     pub async fn call<'a>(self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
+   |     ------------------------------------------------------------ within this `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`
+   |
+   = help: within `impl Future<Output = <dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)> as ForLifetime>::Of<'_>>`, the trait `Send` is not implemented for `*mut RawOrBox<128, 8>`
+note: required because it's used within this `async` fn body
+  --> src/async.rs
+   |
+   |   ) -> Ret::Of<'a> {
+   |  __________________^
+   | |     let mut future = MaybeUninit::<FutureStorage>::uninit();
+   | |     let vtable = call(&mut future);
+   | |     let future = future.as_mut_ptr();
+...  |
+   | |     poll_fn(|cx| unsafe { (vtable.poll)((*future).ptr_mut(), cx, PhantomData) }).await
+   | | }
+   | |_^
+note: required because it's used within this `async` fn body
+  --> src/async.rs
+   |
+   |       pub async fn call<'a>(self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
+   |  __________________________________________________________________^
+   | |         let mut storage = ManuallyDrop::new(self.storage);
+   | |         let call = |fut: &mut _| unsafe {
+   | |             (storage.vtable.call)(storage.ptr_mut(), arg, fut, PhantomData)
+   | |         };
+   | |         unsafe { async_call(call) }.await
+   | |     }
+   | |_____^
+note: required by a bound in `assert_send`
+  --> tests/compilation/local.rs:3:19
+   |
+ 3 | fn assert_send<T: Send>(_: &T) {}
+   |                   ^^^^ required by this bound in `assert_send`
+
+error[E0277]: `*mut RawOrBox<128, 8>` cannot be shared between threads safely
+  --> tests/compilation/local.rs:36:17
+   |
+36 |     assert_send(&f.call("test"));
+   |     ----------- ^^^^^^^^^^^^^^^ `*mut RawOrBox<128, 8>` cannot be shared between threads safely
+   |     |
+   |     required by a bound introduced by this call
+   |
+   = help: the trait `Sync` is not implemented for `*mut RawOrBox<128, 8>`
+   = note: required for `&*mut RawOrBox<128, 8>` to implement `Send`
 note: required because it's used within this closure
   --> src/async.rs
    |
-   |     let _guard = DropGuard(|| unsafe { (vtable.drop)(future_ptr) });
+   |     let _guard = DropGuard(|| unsafe { vtable.drop_vtable.drop_storage(&mut *future) });
    |                            ^^
 note: required because it appears within the type `dyn_fn::r#async::async_call::{closure#0}::DropGuard<{closure@dyn_fn::r#async::async_call<'_, RawOrBox<128, 8>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, {closure@dyn_fn::LocalDynAsyncFnOnce<'_, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box, RawOrBox<128, 8>>::call<'_>::{closure#0}::{closure#0}}>::{closure#0}::{closure#0}}>`
   --> src/async.rs
@@ -745,9 +948,9 @@ note: required because it's used within this `async` fn body
    |  __________________^
    | |     let mut future = MaybeUninit::<FutureStorage>::uninit();
    | |     let vtable = call(&mut future);
-   | |     let future_ptr = unsafe { future.assume_init_mut().ptr_mut() };
+   | |     let future = future.as_mut_ptr();
 ...  |
-   | |     poll_fn(|cx| unsafe { (vtable.poll)(future_ptr, cx, PhantomData) }).await
+   | |     poll_fn(|cx| unsafe { (vtable.poll)((*future).ptr_mut(), cx, PhantomData) }).await
    | | }
    | |_^
 note: required because it's used within this `async` fn body
@@ -814,9 +1017,9 @@ note: required because it's used within this `async` fn body
    |  __________________^
    | |     let mut future = MaybeUninit::<FutureStorage>::uninit();
    | |     let vtable = call(&mut future);
-   | |     let future_ptr = unsafe { future.assume_init_mut().ptr_mut() };
+   | |     let future = future.as_mut_ptr();
 ...  |
-   | |     poll_fn(|cx| unsafe { (vtable.poll)(future_ptr, cx, PhantomData) }).await
+   | |     poll_fn(|cx| unsafe { (vtable.poll)((*future).ptr_mut(), cx, PhantomData) }).await
    | | }
    | |_^
 note: required because it's used within this `async` fn body
