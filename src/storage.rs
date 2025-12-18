@@ -1,5 +1,5 @@
 #[cfg(feature = "alloc")]
-use alloc::{boxed::Box as StdBox, sync::Arc as StdArc};
+use alloc::{boxed::Box as StdBox, rc::Rc as StdRc, sync::Arc as StdArc};
 use core::{
     alloc::Layout,
     marker::{PhantomData, PhantomPinned},
@@ -18,6 +18,7 @@ pub type DefaultFutureStorage = RawOrBox<{ 16 * size_of::<usize>() }>;
 
 pub trait Storage: private::Storage {}
 pub trait StorageMut: Storage {}
+pub trait StorageSend: Storage {}
 
 pub(crate) struct DropVTable {
     drop_inner: Option<unsafe fn(NonNull<()>)>,
@@ -150,6 +151,10 @@ impl<const SIZE: usize, const ALIGN: usize> StorageMut for Raw<SIZE, ALIGN> wher
     Align<ALIGN>: Alignment
 {
 }
+impl<const SIZE: usize, const ALIGN: usize> StorageSend for Raw<SIZE, ALIGN> where
+    Align<ALIGN>: Alignment
+{
+}
 
 #[cfg(feature = "alloc")]
 #[derive(Debug)]
@@ -164,6 +169,30 @@ impl Box {
 impl Storage for Box {}
 #[cfg(feature = "alloc")]
 impl StorageMut for Box {}
+#[cfg(feature = "alloc")]
+impl StorageSend for Box {}
+
+#[cfg(feature = "alloc")]
+#[derive(Debug)]
+pub struct Rc(NonNull<()>);
+#[cfg(feature = "alloc")]
+impl Rc {
+    pub(crate) fn new_rc<T>(data: StdRc<T>) -> Self {
+        Self(NonNull::new(StdRc::into_raw(data).cast_mut().cast()).unwrap())
+    }
+}
+#[cfg(feature = "alloc")]
+impl Clone for Rc {
+    fn clone(&self) -> Self {
+        // The pointer has been obtained through `Rc::into_raw`,
+        // and the `Rc` instance is still valid because strong
+        // count is only decremented in drop.
+        unsafe { StdRc::increment_strong_count(self.0.as_ptr()) };
+        Self(self.0)
+    }
+}
+#[cfg(feature = "alloc")]
+impl Storage for Rc {}
 
 #[cfg(feature = "alloc")]
 #[derive(Debug)]
@@ -180,12 +209,14 @@ impl Clone for Arc {
         // The pointer has been obtained through `Arc::into_raw`,
         // and the `Arc` instance is still valid because strong
         // count is only decremented in drop.
-        unsafe { StdArc::increment_strong_count(self.0.as_ptr()) }
+        unsafe { StdArc::increment_strong_count(self.0.as_ptr()) };
         Self(self.0)
     }
 }
 #[cfg(feature = "alloc")]
 impl Storage for Arc {}
+#[cfg(feature = "alloc")]
+impl StorageSend for Arc {}
 
 #[cfg(not(feature = "alloc"))]
 pub type RawOrBox<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }> =
@@ -211,10 +242,15 @@ impl<const SIZE: usize, const ALIGN: usize> StorageMut for RawOrBox<SIZE, ALIGN>
     Align<ALIGN>: Alignment
 {
 }
+#[cfg(feature = "alloc")]
+impl<const SIZE: usize, const ALIGN: usize> StorageSend for RawOrBox<SIZE, ALIGN> where
+    Align<ALIGN>: Alignment
+{
+}
 
 pub(crate) mod private {
     #[cfg(feature = "alloc")]
-    use alloc::{boxed::Box, sync::Arc};
+    use alloc::{boxed::Box, rc::Rc, sync::Arc};
     use core::{alloc::Layout, ptr::NonNull};
 
     use elain::{Align, Alignment};
@@ -262,6 +298,24 @@ pub(crate) mod private {
                 unsafe { alloc::alloc::dealloc(self.0.as_ptr().cast(), layout) };
             }
         }
+    }
+
+    #[cfg(feature = "alloc")]
+    impl Storage for super::Rc {
+        const NEEDS_DROP_INNER: bool = true;
+        fn new<T>(data: T) -> Self {
+            Self::new_rc(Rc::new(data))
+        }
+        fn ptr(&self) -> NonNull<()> {
+            self.0
+        }
+        fn ptr_mut(&mut self) -> NonNull<()> {
+            self.0
+        }
+        unsafe fn drop_inner<T>(ptr_mut: NonNull<()>) {
+            drop(unsafe { Rc::<T>::from_raw(ptr_mut.cast().as_ptr()) });
+        }
+        unsafe fn drop_in_place(&mut self, _layout: Layout) {}
     }
 
     #[cfg(feature = "alloc")]
@@ -404,11 +458,13 @@ mod tests {
         #[cfg(feature = "alloc")]
         check_drop::<super::Box>();
         #[cfg(feature = "alloc")]
+        check_drop::<super::Rc>();
+        #[cfg(feature = "alloc")]
+        check_drop::<super::Arc>();
+        #[cfg(feature = "alloc")]
         check_drop::<super::RawOrBox<{ size_of::<SetDropped>() }>>();
         #[cfg(feature = "alloc")]
         check_drop::<super::RawOrBox<0>>();
-        #[cfg(feature = "alloc")]
-        check_drop::<super::Arc>();
     }
 
     #[test]
@@ -439,30 +495,36 @@ mod tests {
         #[cfg(feature = "alloc")]
         check_dst::<super::Box>();
         #[cfg(feature = "alloc")]
+        check_dst::<super::Rc>();
+        #[cfg(feature = "alloc")]
+        check_dst::<super::Arc>();
+        #[cfg(feature = "alloc")]
         check_dst::<super::RawOrBox<{ size_of::<SetDropped>() }>>();
         #[cfg(feature = "alloc")]
         check_dst::<super::RawOrBox<0>>();
-        #[cfg(feature = "alloc")]
-        check_dst::<super::Arc>();
     }
 
     #[cfg(feature = "alloc")]
     #[test]
-    fn arc_clone() {
-        use core::sync::atomic::{AtomicBool, Ordering::Relaxed};
-        // cannot use `&mut bool` because first `assert!(!dropped)` would invalid the tag
-        struct SetDropped<'a>(&'a AtomicBool);
-        impl Drop for SetDropped<'_> {
-            fn drop(&mut self) {
-                assert!(!self.0.swap(true, Relaxed));
+    fn clone() {
+        fn check_clone<S: Storage + Clone>() {
+            use core::sync::atomic::{AtomicBool, Ordering::Relaxed};
+            // cannot use `&mut bool` because first `assert!(!dropped)` would invalid the tag
+            struct SetDropped<'a>(&'a AtomicBool);
+            impl Drop for SetDropped<'_> {
+                fn drop(&mut self) {
+                    assert!(!self.0.swap(true, Relaxed));
+                }
             }
+            let mut dropped = AtomicBool::new(false);
+            let storage = TestStorage::<S>::new_test(SetDropped(&dropped));
+            let storage2 = storage.clone();
+            drop(storage);
+            assert!(!dropped.load(Relaxed));
+            drop(storage2);
+            assert!(*dropped.get_mut());
         }
-        let mut dropped = AtomicBool::new(false);
-        let storage = TestStorage::<super::Arc>::new_test(SetDropped(&dropped));
-        let storage2 = storage.clone();
-        drop(storage);
-        assert!(!dropped.load(Relaxed));
-        drop(storage2);
-        assert!(*dropped.get_mut());
+        check_clone::<super::Rc>();
+        check_clone::<super::Arc>();
     }
 }

@@ -11,10 +11,10 @@ use core::{
 use higher_kinded_types::{ForFixed, ForLt, ForRefMut};
 
 use crate::{
-    macros::{impl_debug, new_impls, unsafe_impl_send_sync},
+    macros::{impl_clone, impl_debug, new_impls, unsafe_impl_send_sync},
     storage::{
         DefaultFnStorage, DefaultFutureStorage, DropVTable, DynStorage, Storage, StorageMoved,
-        StorageMut, VTable,
+        StorageMut, StorageSend, VTable,
     },
 };
 
@@ -216,27 +216,16 @@ impl<
     }
 }
 
-new_impls!(async(arc) LocalDynAsyncFn, Storage, [for<'a> Fn(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + 'capture], for<'a> AsyncFn(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + 'capture);
+new_impls!(async LocalDynAsyncFn, Storage, [for<'a> Fn(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + 'capture], for<'a> AsyncFn(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + 'capture);
 
-#[cfg(feature = "alloc")]
-impl<'capture, Arg: ForLt + 'static, Ret: ForLt + 'static, FutureStorage: StorageMut> Clone
-    for LocalDynAsyncFn<'capture, Arg, Ret, crate::storage::Arc, FutureStorage>
-{
-    fn clone(&self) -> Self {
-        Self {
-            storage: self.storage.clone(),
-            _capture: PhantomData,
-        }
-    }
-}
-
+impl_clone!(async LocalDynAsyncFn, Storage);
 impl_debug!(async LocalDynAsyncFn, Storage);
 
 pub struct DynAsyncFn<
     'capture,
     Arg: ForLt + 'static,
     Ret: ForLt + 'static = ForFixed<()>,
-    FnStorage: Storage = DefaultFnStorage,
+    FnStorage: Storage + StorageSend = DefaultFnStorage,
     FutureStorage: StorageMut = DefaultFutureStorage,
 >(LocalDynAsyncFn<'capture, Arg, Ret, FnStorage, FutureStorage>);
 
@@ -247,7 +236,7 @@ impl<
     'capture,
     Arg: ForLt + 'static,
     Ret: ForLt + 'static,
-    FnStorage: Storage,
+    FnStorage: Storage + StorageSend,
     FutureStorage: StorageMut,
 > DynAsyncFn<'capture, Arg, Ret, FnStorage, FutureStorage>
 {
@@ -292,18 +281,10 @@ impl<
     }
 }
 
-new_impls!(async(arc) DynAsyncFn, Storage, [for<'a> Fn(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + Send + Sync + 'capture], AsyncFnSend<'capture, Arg, Ret>);
+new_impls!(async DynAsyncFn, Storage + StorageSend, [for<'a> Fn(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + Send + Sync + 'capture], AsyncFnSend<'capture, Arg, Ret>);
 
-#[cfg(feature = "alloc")]
-impl<'capture, Arg: ForLt + 'static, Ret: ForLt + 'static, FutureStorage: StorageMut> Clone
-    for DynAsyncFn<'capture, Arg, Ret, crate::storage::Arc, FutureStorage>
-{
-    fn clone(&self) -> Self {
-        Self(self.0.clone())
-    }
-}
-
-impl_debug!(async DynAsyncFn, Storage);
+impl_clone!(async DynAsyncFn, Storage + StorageSend);
+impl_debug!(async DynAsyncFn, Storage + StorageSend);
 
 pub struct LocalDynAsyncFnMut<
     'capture,
@@ -401,7 +382,7 @@ pub struct DynAsyncFnMut<
     'capture,
     Arg: ForLt + 'static,
     Ret: ForLt + 'static = ForFixed<()>,
-    FnStorage: StorageMut = DefaultFnStorage,
+    FnStorage: StorageMut + StorageSend = DefaultFnStorage,
     FutureStorage: StorageMut = DefaultFutureStorage,
 >(LocalDynAsyncFnMut<'capture, Arg, Ret, FnStorage, FutureStorage>);
 
@@ -411,7 +392,7 @@ impl<
     'capture,
     Arg: ForLt + 'static,
     Ret: ForLt + 'static,
-    FnStorage: StorageMut,
+    FnStorage: StorageMut + StorageSend,
     FutureStorage: StorageMut,
 > DynAsyncFnMut<'capture, Arg, Ret, FnStorage, FutureStorage>
 {
@@ -456,9 +437,9 @@ impl<
     }
 }
 
-new_impls!(async DynAsyncFnMut, StorageMut, [for<'a> FnMut(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + Send + Sync + 'capture], AsyncFnMutSend<'capture, Arg, Ret>);
+new_impls!(async DynAsyncFnMut, StorageMut + StorageSend, [for<'a> FnMut(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + Send + Sync + 'capture], AsyncFnMutSend<'capture, Arg, Ret>);
 
-impl_debug!(async DynAsyncFnMut, StorageMut);
+impl_debug!(async DynAsyncFnMut, StorageMut + StorageSend);
 
 pub struct LocalDynAsyncFnOnce<
     'capture,
@@ -562,7 +543,7 @@ pub struct DynAsyncFnOnce<
     'capture,
     Arg: ForLt + 'static,
     Ret: ForLt + 'static = ForFixed<()>,
-    FnStorage: StorageMut = DefaultFnStorage,
+    FnStorage: StorageMut + StorageSend = DefaultFnStorage,
     FutureStorage: StorageMut = DefaultFutureStorage,
 >(LocalDynAsyncFnOnce<'capture, Arg, Ret, FnStorage, FutureStorage>);
 
@@ -572,7 +553,7 @@ impl<
     'capture,
     Arg: ForLt + 'static,
     Ret: ForLt + 'static,
-    FnStorage: StorageMut,
+    FnStorage: StorageMut + StorageSend,
     FutureStorage: StorageMut,
 > DynAsyncFnOnce<'capture, Arg, Ret, FnStorage, FutureStorage>
 {
@@ -619,6 +600,6 @@ impl<
     }
 }
 
-new_impls!(async DynAsyncFnOnce, StorageMut, [for<'a> FnOnce(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + Send + Sync + 'capture], AsyncFnOnceSend<'capture, Arg, Ret>);
+new_impls!(async DynAsyncFnOnce, StorageMut + StorageSend, [for<'a> FnOnce(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + Send + Sync + 'capture], AsyncFnOnceSend<'capture, Arg, Ret>);
 
-impl_debug!(async DynAsyncFnOnce, StorageMut);
+impl_debug!(async DynAsyncFnOnce, StorageMut + StorageSend);
