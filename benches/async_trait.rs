@@ -71,6 +71,17 @@ fn dyn_async_fn_sync_shortcut(b: Bencher) {
 }
 
 #[divan::bench]
+fn dyn_async_fn_raw(b: Bencher) {
+    let dyn_async_fn = black_box(LocalDynAsyncFn::<
+        ForRef<str>,
+        ForFixed<usize>,
+        storage::Box,
+        storage::Raw<{ 16 * size_of::<usize>() }>,
+    >::new(async |s: &str, _| s.len()));
+    b.bench_local(|| dyn_async_fn.call("test").now_or_never())
+}
+
+#[divan::bench]
 fn dyn_async_fn_box(b: Bencher) {
     let dyn_async_fn = black_box(LocalDynAsyncFn::<
         ForRef<str>,
