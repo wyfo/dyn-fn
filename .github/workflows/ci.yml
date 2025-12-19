@@ -31,6 +31,10 @@ jobs:
         uses: taiki-e/install-action@cargo-llvm-cov
       - name: code coverage
         run: cargo +nightly llvm-cov ${{ matrix.features }} --fail-under-functions 100 --fail-under-lines 100 --fail-under-regions 100
+      - name: check doc
+        run: cargo doc
+        env:
+          RUSTDOCFLAGS: "-Dwarnings"
   benchmark:
     needs: test
     strategy:

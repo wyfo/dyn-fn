@@ -14,8 +14,11 @@ higher-kinded-types = "0.3.0"
 
 [dev-dependencies]
 async-trait = "0.1"
+defmt = "1"
 divan = "0.1"
 futures-util = "0.3"
+heapless = "0.9"
+tokio = { version = "1", features = ["macros", "rt", "time"] }
 trybuild = "1"
 
 [[bench]]

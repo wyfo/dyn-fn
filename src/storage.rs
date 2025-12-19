@@ -23,7 +23,7 @@ pub type DefaultFutureStorage = RawOrBox<{ 16 * size_of::<usize>() }>;
 
 /// A storage that can be used to store dynamic type-erased objects.
 pub trait Storage: private::Storage {}
-/// A [`storage`] whose mutable access gives mutable access to the stored object.
+/// A [`Storage`] whose mutable access gives mutable access to the stored object.
 pub trait StorageMut: Storage {}
 /// A storage implementing [`Send`] + [`Sync`] if the stored object implements [`Send`] + [`Sync`].
 pub trait StorageSend: private::StorageSend {}
