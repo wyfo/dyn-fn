@@ -4,7 +4,7 @@ use core::{
     alloc::Layout,
     marker::{PhantomData, PhantomPinned},
     mem,
-    mem::MaybeUninit,
+    mem::{ManuallyDrop, MaybeUninit},
     ptr::NonNull,
 };
 
@@ -18,9 +18,12 @@ pub type DefaultFutureStorage = RawOrBox<{ 16 * size_of::<usize>() }>;
 
 pub trait Storage: private::Storage {}
 pub trait StorageMut: Storage {}
-pub trait StorageSend: Storage {}
+pub trait StorageSend: private::StorageSend {}
 
 pub(crate) struct DropVTable {
+    /// # Safety
+    ///
+    /// See [`private::Storage::drop_inner`].
     drop_inner: Option<unsafe fn(NonNull<()>)>,
     layout: Layout,
 }
@@ -40,11 +43,19 @@ impl DropVTable {
         }
     }
 
+    /// # Safety
+    ///
+    /// The vtable must match the data stored in the storage,
+    /// and the storage must be accessed after the call.
     #[cfg_attr(coverage_nightly, coverage(off))]
     pub(crate) unsafe fn drop_storage(&self, storage: &mut impl Storage) {
         if let Some(drop_inner) = self.drop_inner {
+            // SAFETY: the storage data is no longer accessed after the call,
+            // and is matched by the vtable as per function contract.
             unsafe { drop_inner(storage.ptr_mut()) };
         }
+        // SAFETY: the storage data is no longer accessed after the call,
+        // and is matched by the vtable as per function contract.
         unsafe { storage.drop_in_place(self.layout) };
     }
 }
@@ -55,11 +66,29 @@ pub(crate) trait VTable: 'static {
 
 #[derive(Debug)]
 pub(crate) struct DynStorage<S: Storage, VT: VTable> {
-    pub(crate) storage: S,
-    pub(crate) vtable: &'static VT,
+    storage: S,
+    vtable: &'static VT,
 }
 
 impl<S: Storage, VT: VTable> DynStorage<S, VT> {
+    /// # Safety
+    ///
+    /// `vtable.drop_vtable()` must match the data stored in `storage`.
+    pub(crate) const unsafe fn new(storage: S, vtable: &'static VT) -> Self {
+        Self { storage, vtable }
+    }
+
+    pub(crate) fn vtable(&self) -> &'static VT {
+        self.vtable
+    }
+
+    /// # Safety
+    ///
+    /// The returned storage must be used only to instantiate `StorageMoved`.
+    pub(crate) unsafe fn move_storage(this: &mut ManuallyDrop<Self>) -> &mut S {
+        &mut this.storage
+    }
+
     pub(crate) fn ptr<T>(&self) -> NonNull<T> {
         self.storage.ptr().cast()
     }
@@ -71,6 +100,8 @@ impl<S: Storage, VT: VTable> DynStorage<S, VT> {
 
 impl<S: Storage, VT: VTable> Drop for DynStorage<S, VT> {
     fn drop(&mut self) {
+        // SAFETY: `Self::new` ensures the vtable matches the data stored;
+        // the storage is no longer accessed after the call (because it's dropped)
         unsafe { self.vtable.drop_vtable().drop_storage(&mut self.storage) }
     }
 }
@@ -91,6 +122,10 @@ pub(crate) struct StorageMoved<'a, S: StorageMut, T> {
 }
 
 impl<'a, S: StorageMut, T> StorageMoved<'a, S, T> {
+    /// # Safety
+    ///
+    /// `storage` must have been instantiated with type `T`.
+    /// `storage` must neither be accessed, nor dropped, after `StorageMoved` instantiation.
     pub(crate) unsafe fn new(storage: &'a mut S) -> Self {
         Self {
             storage,
@@ -98,13 +133,20 @@ impl<'a, S: StorageMut, T> StorageMoved<'a, S, T> {
         }
     }
 
+    /// # Safety
+    ///
+    /// `read` must be called only once.
     pub(crate) unsafe fn read(&self) -> T {
+        // SAFETY: `storage` stores a `T`
         unsafe { self.storage.ptr().cast().read() }
     }
 }
 
 impl<S: StorageMut, T> Drop for StorageMoved<'_, S, T> {
     fn drop(&mut self) {
+        // SAFETY: the storage data is no longer accessed after the call,
+        // and is matched by the vtable as per function contract, as per
+        // `Self::new` contract
         unsafe { self.storage.drop_in_place(Layout::new::<T>()) }
     }
 }
@@ -125,6 +167,9 @@ impl<const SIZE: usize, const ALIGN: usize> Raw<SIZE, ALIGN>
 where
     Align<ALIGN>: Alignment,
 {
+    /// # Safety
+    ///
+    /// `data` must have size and alignment lesser or equal to the generic parameters.
     const unsafe fn new_unchecked<T>(data: T) -> Self {
         let mut raw = Self {
             data: MaybeUninit::uninit(),
@@ -132,6 +177,8 @@ where
             _not_send_sync: PhantomData,
             _pinned: PhantomPinned,
         };
+        // SAFETY: function contract guarantees that `raw.data` size and alignment
+        // matches `data` ones; alignment is obtained through `_align` field and `repr(C)`
         unsafe { raw.data.as_mut_ptr().cast::<T>().write(data) };
         raw
     }
@@ -139,6 +186,7 @@ where
     pub(crate) const fn new<T>(data: T) -> Self {
         const { assert!(size_of::<T>() <= SIZE) };
         const { assert!(align_of::<T>() <= ALIGN) };
+        // SAFETY: assertion above ensures function contract
         unsafe { Self::new_unchecked::<T>(data) }
     }
 }
@@ -184,7 +232,7 @@ impl Rc {
 #[cfg(feature = "alloc")]
 impl Clone for Rc {
     fn clone(&self) -> Self {
-        // The pointer has been obtained through `Rc::into_raw`,
+        // SAFETY: The pointer has been obtained through `Rc::into_raw`,
         // and the `Rc` instance is still valid because strong
         // count is only decremented in drop.
         unsafe { StdRc::increment_strong_count(self.0.as_ptr()) };
@@ -206,7 +254,7 @@ impl Arc {
 #[cfg(feature = "alloc")]
 impl Clone for Arc {
     fn clone(&self) -> Self {
-        // The pointer has been obtained through `Arc::into_raw`,
+        // SAFETY: The pointer has been obtained through `Arc::into_raw`,
         // and the `Arc` instance is still valid because strong
         // count is only decremented in drop.
         unsafe { StdArc::increment_strong_count(self.0.as_ptr()) };
@@ -266,18 +314,40 @@ pub(crate) mod private {
 
     use elain::{Align, Alignment};
 
-    pub trait Storage: Sized + 'static {
+    /// # Safety
+    ///
+    /// `ptr`/`ptr_mut` must return a pointer to the data stored in the storage.
+    pub unsafe trait Storage: Sized + 'static {
         const NEEDS_DROP_INNER: bool = false;
         fn new<T>(data: T) -> Self;
         fn ptr(&self) -> NonNull<()>;
         fn ptr_mut(&mut self) -> NonNull<()>;
+        /// # Safety
+        ///
+        /// `ptr_mut` must have been obtained from `Storage::ptr_mut`.
+        /// Storage must have been instantiated with a data of type `T`.
+        /// Storage data must not be accessed after calling this method.
         unsafe fn drop_inner<T>(ptr_mut: NonNull<()>) {
+            // SAFETY: `ptr_mut` is a pointer to `T` as per function and trait contracts,
+            // and is no longer accessed after the call.
             unsafe { ptr_mut.cast::<T>().drop_in_place() }
         }
+        /// # Safety
+        ///
+        /// `drop_in_place` must be called once, and the storage must not be used
+        /// after. `layout` must be the layout of the `data` passed in `Self::new`
+        /// (or in other constructor like `new_box`, etc.)
         unsafe fn drop_in_place(&mut self, layout: Layout);
     }
 
-    impl<const SIZE: usize, const ALIGN: usize> Storage for super::Raw<SIZE, ALIGN>
+    /// # Safety
+    ///
+    /// The underlying storage must implement `Send` + `Sync` if the stored data
+    /// implements `Send` + `Sync`.
+    pub unsafe trait StorageSend {}
+
+    // SAFETY: `ptr`/`ptr_mut` return a pointer to the stored data.
+    unsafe impl<const SIZE: usize, const ALIGN: usize> Storage for super::Raw<SIZE, ALIGN>
     where
         Align<ALIGN>: Alignment,
     {
@@ -293,8 +363,15 @@ pub(crate) mod private {
         unsafe fn drop_in_place(&mut self, _layout: Layout) {}
     }
 
+    // SAFETY: Raw storage has the same guarantee the data it stores.
+    unsafe impl<const SIZE: usize, const ALIGN: usize> StorageSend for super::Raw<SIZE, ALIGN> where
+        Align<ALIGN>: Alignment
+    {
+    }
+
+    // SAFETY: `ptr`/`ptr_mut` return a pointer to the stored data.
     #[cfg(feature = "alloc")]
-    impl Storage for super::Box {
+    unsafe impl Storage for super::Box {
         fn new<T>(data: T) -> Self {
             Self::new_box(Box::new(data))
         }
@@ -306,13 +383,19 @@ pub(crate) mod private {
         }
         unsafe fn drop_in_place(&mut self, layout: Layout) {
             if layout.size() != 0 {
+                // SAFETY: storage has been initialized with `Box<T>`,
+                // and `layout` must be `Layout::new::<T>()` as per function contract
                 unsafe { alloc::alloc::dealloc(self.0.as_ptr().cast(), layout) };
             }
         }
     }
-
+    // SAFETY: Box has the same guarantee the data it stores.
     #[cfg(feature = "alloc")]
-    impl Storage for super::Rc {
+    unsafe impl StorageSend for super::Box {}
+
+    // SAFETY: `ptr`/`ptr_mut` return a pointer to the stored data.
+    #[cfg(feature = "alloc")]
+    unsafe impl Storage for super::Rc {
         const NEEDS_DROP_INNER: bool = true;
         fn new<T>(data: T) -> Self {
             Self::new_rc(Rc::new(data))
@@ -324,13 +407,15 @@ pub(crate) mod private {
             self.0
         }
         unsafe fn drop_inner<T>(ptr_mut: NonNull<()>) {
+            // SAFETY: storage has been initialized with `Rc<T>`
             drop(unsafe { Rc::<T>::from_raw(ptr_mut.cast().as_ptr()) });
         }
         unsafe fn drop_in_place(&mut self, _layout: Layout) {}
     }
 
+    // SAFETY: `ptr`/`ptr_mut` return a pointer to the stored data.
     #[cfg(feature = "alloc")]
-    impl Storage for super::Arc {
+    unsafe impl Storage for super::Arc {
         const NEEDS_DROP_INNER: bool = true;
         fn new<T>(data: T) -> Self {
             Self::new_arc(Arc::new(data))
@@ -342,22 +427,29 @@ pub(crate) mod private {
             self.0
         }
         unsafe fn drop_inner<T>(ptr_mut: NonNull<()>) {
+            // SAFETY: storage has been initialized with `Arc<T>`
             drop(unsafe { Arc::<T>::from_raw(ptr_mut.cast().as_ptr()) });
         }
         unsafe fn drop_in_place(&mut self, _layout: Layout) {}
     }
 
+    // SAFETY: `Arc` implements `Send` + `Sync` when data implements `Send` + `Sync`
+    #[cfg(feature = "alloc")]
+    unsafe impl StorageSend for super::Arc {}
+
+    // SAFETY: Both `Raw` and `Box` implements `Storage`
     // This enum is generic and the variant is chosen according constant predicate,
     // so it's not possible to cover all variant for a specific monomorphization.
     // https://github.com/taiki-e/cargo-llvm-cov/issues/394
     #[cfg_attr(coverage_nightly, coverage(off))]
-    impl<const SIZE: usize, const ALIGN: usize> Storage for super::RawOrBox<SIZE, ALIGN>
+    unsafe impl<const SIZE: usize, const ALIGN: usize> Storage for super::RawOrBox<SIZE, ALIGN>
     where
         Align<ALIGN>: Alignment,
     {
         fn new<T>(data: T) -> Self {
             #[cfg(feature = "alloc")]
             if size_of::<T>() <= SIZE && align_of::<T>() <= ALIGN {
+                // SAFETY: size and alignment are checked above
                 Self(super::RawOrBoxInner::Raw(unsafe {
                     super::Raw::new_unchecked(data)
                 }))
@@ -393,10 +485,17 @@ pub(crate) mod private {
             }
         }
     }
+
+    // SAFETY: Both `Raw` and `Box` implements `StorageSend`
+    unsafe impl<const SIZE: usize, const ALIGN: usize> StorageSend for super::RawOrBox<SIZE, ALIGN> where
+        Align<ALIGN>: Alignment
+    {
+    }
 }
 
 #[cfg_attr(coverage_nightly, coverage(off))]
 #[cfg(test)]
+#[allow(clippy::undocumented_unsafe_blocks)]
 mod tests {
     use core::{mem, mem::ManuallyDrop};
 
@@ -493,7 +592,9 @@ mod tests {
             let mut dropped = false;
             let mut storage =
                 ManuallyDrop::new(TestStorage::<S>::new_test(SetDropped(&mut dropped)));
-            let moved = unsafe { StorageMoved::<S, SetDropped>::new(&mut storage.storage) };
+            let moved = unsafe {
+                StorageMoved::<S, SetDropped>::new(DynStorage::move_storage(&mut storage))
+            };
             unsafe { drop(moved.read()) };
             assert!(dropped);
         }

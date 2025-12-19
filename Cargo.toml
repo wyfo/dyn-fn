@@ -32,5 +32,6 @@ required-features = ["alloc"]
 bench = false
 
 [lints.rust]
+unsafe_op_in_unsafe_fn = "forbid"
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }
 

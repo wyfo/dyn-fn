@@ -44,20 +44,19 @@ impl<'capture, Arg: ForLt + 'static, Ret: ForLt + 'static, FnStorage: Storage>
         storage: FnStorage,
     ) -> Self {
         let vtable = &SyncVTable {
-            // I don't know why I need to annotate `func` while it's not necessary in async module
             call: |func: NonNull<()>, arg, _| unsafe {
                 func.cast::<F>().as_ref()(arg, PhantomData)
             },
             drop_vtable: const { DropVTable::new::<FnStorage, F>() },
         };
         Self {
-            storage: DynStorage { storage, vtable },
+            storage: unsafe { DynStorage::new(storage, vtable) },
             _capture: PhantomData,
         }
     }
 
     pub fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-        unsafe { (self.storage.vtable.call)(self.storage.ptr(), arg, PhantomData) }
+        unsafe { (self.storage.vtable().call)(self.storage.ptr(), arg, PhantomData) }
     }
 }
 
@@ -121,13 +120,13 @@ impl<'capture, Arg: ForLt + 'static, Ret: ForLt + 'static, FnStorage: StorageMut
             drop_vtable: const { DropVTable::new::<FnStorage, F>() },
         };
         Self {
-            storage: DynStorage { storage, vtable },
+            storage: unsafe { DynStorage::new(storage, vtable) },
             _capture: PhantomData,
         }
     }
 
     pub fn call<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-        unsafe { (self.storage.vtable.call)(self.storage.ptr_mut(), arg, PhantomData) }
+        unsafe { (self.storage.vtable().call)(self.storage.ptr_mut(), arg, PhantomData) }
     }
 }
 
@@ -189,14 +188,14 @@ impl<'capture, Arg: ForLt + 'static, Ret: ForLt + 'static, FnStorage: StorageMut
             drop_vtable: const { DropVTable::new::<FnStorage, F>() },
         };
         Self {
-            storage: DynStorage { storage, vtable },
+            storage: unsafe { DynStorage::new(storage, vtable) },
             _capture: PhantomData,
         }
     }
 
     pub fn call(self, arg: Arg::Of<'_>) -> Ret::Of<'_> {
         let mut storage = ManuallyDrop::new(self.storage);
-        unsafe { (storage.vtable.call)(&mut storage.storage, arg, PhantomData) }
+        unsafe { (storage.vtable().call)(DynStorage::move_storage(&mut storage), arg, PhantomData) }
     }
 }
 

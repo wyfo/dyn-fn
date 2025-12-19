@@ -64,6 +64,9 @@ fn store_future<
     }
 }
 
+/// # Safety
+///
+/// `future` must be initialized, and `vtable` must match the data stored in `future`.
 async unsafe fn poll_future<'a, FutureStorage: StorageMut, Ret: ForLt + 'static>(
     vtable: &'static FutureVTable<Ret>,
     future: &mut MaybeUninit<FutureStorage>,
@@ -112,6 +115,9 @@ impl<Arg: ForLt + 'static, Ret: ForLt + 'static, FutureStorage: StorageMut, Ptr:
 }
 struct SendFuture<F>(F);
 impl<F> SendFuture<F> {
+    /// # Safety
+    ///
+    /// `future` must implement `Send`.
     unsafe fn new(future: F) -> Self {
         Self(future)
     }
@@ -149,17 +155,15 @@ impl<
     >(
         storage: FnStorage,
     ) -> Self {
-        Self {
-            storage: DynStorage {
-                storage,
-                vtable: &AsyncVTable {
-                    call: |func, arg, fut, _| {
-                        store_future(fut, unsafe { func.cast::<F>().as_ref()(arg, PhantomData) })
-                    },
-                    call_sync: None,
-                    drop_vtable: const { DropVTable::new::<FnStorage, F>() },
-                },
+        let vtable = &AsyncVTable {
+            call: |func: NonNull<()>, arg, fut, _| {
+                store_future(fut, unsafe { func.cast::<F>().as_ref()(arg, PhantomData) })
             },
+            call_sync: None,
+            drop_vtable: const { DropVTable::new::<FnStorage, F>() },
+        };
+        Self {
+            storage: unsafe { DynStorage::new(storage, vtable) },
             _capture: PhantomData,
         }
     }
@@ -169,33 +173,31 @@ impl<
     >(
         storage: FnStorage,
     ) -> Self {
-        Self {
-            storage: DynStorage {
-                storage,
-                vtable: &AsyncVTable {
-                    call: |func, arg, fut, _| {
-                        store_future(fut, async move {
-                            unsafe { func.cast::<F>().as_ref()(arg, PhantomData) }
-                        })
-                    },
-                    call_sync: Some(|func, arg, _| unsafe {
-                        func.cast::<F>().as_ref()(arg, PhantomData)
-                    }),
-                    drop_vtable: const { DropVTable::new::<FnStorage, F>() },
-                },
+        let vtable = &AsyncVTable {
+            call: |func: NonNull<()>, arg, fut, _| {
+                store_future(fut, async move {
+                    unsafe { func.cast::<F>().as_ref()(arg, PhantomData) }
+                })
             },
+            call_sync: Some(|func: NonNull<()>, arg, _| unsafe {
+                func.cast::<F>().as_ref()(arg, PhantomData)
+            }),
+            drop_vtable: const { DropVTable::new::<FnStorage, F>() },
+        };
+        Self {
+            storage: unsafe { DynStorage::new(storage, vtable) },
             _capture: PhantomData,
         }
     }
 
     pub fn is_sync(&self) -> bool {
-        self.storage.vtable.call_sync.is_some()
+        self.storage.vtable().call_sync.is_some()
     }
 
     pub async fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
         let mut future = MaybeUninit::uninit();
         let vtable = unsafe {
-            (self.storage.vtable.call)(self.storage.ptr(), arg, &mut future, PhantomData)
+            (self.storage.vtable().call)(self.storage.ptr(), arg, &mut future, PhantomData)
         };
         unsafe { poll_future(vtable, &mut future) }.await
     }
@@ -204,7 +206,7 @@ impl<
     // Anyway, it surely comes from https://github.com/taiki-e/cargo-llvm-cov/issues/394
     #[cfg_attr(coverage_nightly, coverage(off))]
     pub fn call_sync<'a>(&self, arg: Arg::Of<'a>) -> Option<Ret::Of<'a>> {
-        unsafe { self.storage.vtable.call_sync?(self.storage.ptr(), arg, PhantomData) }.into()
+        unsafe { self.storage.vtable().call_sync?(self.storage.ptr(), arg, PhantomData) }.into()
     }
 
     pub async fn call_try_sync<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
@@ -241,17 +243,15 @@ impl<
 > DynAsyncFn<'capture, Arg, Ret, FnStorage, FutureStorage>
 {
     const fn new_impl<F: AsyncFnSend<'capture, Arg, Ret>>(storage: FnStorage) -> Self {
-        Self(LocalDynAsyncFn {
-            storage: DynStorage {
-                storage,
-                vtable: &AsyncVTable {
-                    call: |func, arg, fut, _| {
-                        store_future(fut, unsafe { func.cast::<F>().as_ref().call(arg) })
-                    },
-                    call_sync: None,
-                    drop_vtable: const { DropVTable::new::<FnStorage, F>() },
-                },
+        let vtable = &AsyncVTable {
+            call: |func: NonNull<()>, arg, fut, _| {
+                store_future(fut, unsafe { func.cast::<F>().as_ref().call(arg) })
             },
+            call_sync: None,
+            drop_vtable: const { DropVTable::new::<FnStorage, F>() },
+        };
+        Self(LocalDynAsyncFn {
+            storage: unsafe { DynStorage::new(storage, vtable) },
             _capture: PhantomData,
         })
     }
@@ -269,6 +269,8 @@ impl<
     }
 
     pub async fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
+        // SAFETY: Future returned by `AsyncFnSend` implements `Send`,
+        // and futures capturing a `Send + Sync` function also implements `Send`
         unsafe { SendFuture::new(self.0.call(arg)).await }
     }
 
@@ -277,6 +279,8 @@ impl<
     }
 
     pub async fn call_try_sync<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
+        // SAFETY: Future returned by `AsyncFnSend` implements `Send`,
+        // and futures capturing a `Send + Sync` function also implements `Send`
         unsafe { SendFuture::new(self.0.call_try_sync(arg)).await }
     }
 }
@@ -310,17 +314,15 @@ impl<
     >(
         storage: FnStorage,
     ) -> Self {
-        Self {
-            storage: DynStorage {
-                storage,
-                vtable: &AsyncVTable {
-                    call: |func, arg, fut, _| {
-                        store_future(fut, unsafe { func.cast::<F>().as_mut()(arg, PhantomData) })
-                    },
-                    call_sync: None,
-                    drop_vtable: const { DropVTable::new::<FnStorage, F>() },
-                },
+        let vtable = &AsyncVTable {
+            call: |func: NonNull<()>, arg, fut, _| {
+                store_future(fut, unsafe { func.cast::<F>().as_mut()(arg, PhantomData) })
             },
+            call_sync: None,
+            drop_vtable: const { DropVTable::new::<FnStorage, F>() },
+        };
+        Self {
+            storage: unsafe { DynStorage::new(storage, vtable) },
             _capture: PhantomData,
         }
     }
@@ -330,39 +332,37 @@ impl<
     >(
         storage: FnStorage,
     ) -> Self {
-        Self {
-            storage: DynStorage {
-                storage,
-                vtable: &AsyncVTable {
-                    call: |func, arg, fut, _| {
-                        store_future(fut, async move {
-                            unsafe { func.cast::<F>().as_mut()(arg, PhantomData) }
-                        })
-                    },
-                    call_sync: Some(|func, arg, _| unsafe {
-                        func.cast::<F>().as_mut()(arg, PhantomData)
-                    }),
-                    drop_vtable: const { DropVTable::new::<FnStorage, F>() },
-                },
+        let vtable = &AsyncVTable {
+            call: |func: NonNull<()>, arg, fut, _| {
+                store_future(fut, async move {
+                    unsafe { func.cast::<F>().as_mut()(arg, PhantomData) }
+                })
             },
+            call_sync: Some(|func: NonNull<()>, arg, _| unsafe {
+                func.cast::<F>().as_mut()(arg, PhantomData)
+            }),
+            drop_vtable: const { DropVTable::new::<FnStorage, F>() },
+        };
+        Self {
+            storage: unsafe { DynStorage::new(storage, vtable) },
             _capture: PhantomData,
         }
     }
 
     pub fn is_sync(&self) -> bool {
-        self.storage.vtable.call_sync.is_some()
+        self.storage.vtable().call_sync.is_some()
     }
 
     pub async fn call<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
         let mut future = MaybeUninit::uninit();
         let vtable = unsafe {
-            (self.storage.vtable.call)(self.storage.ptr_mut(), arg, &mut future, PhantomData)
+            (self.storage.vtable().call)(self.storage.ptr_mut(), arg, &mut future, PhantomData)
         };
         unsafe { poll_future(vtable, &mut future) }.await
     }
 
     pub fn call_sync<'a>(&mut self, arg: Arg::Of<'a>) -> Option<Ret::Of<'a>> {
-        unsafe { self.storage.vtable.call_sync?(self.storage.ptr_mut(), arg, PhantomData) }.into()
+        unsafe { self.storage.vtable().call_sync?(self.storage.ptr_mut(), arg, PhantomData) }.into()
     }
 
     pub async fn call_try_sync<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
@@ -397,17 +397,15 @@ impl<
 > DynAsyncFnMut<'capture, Arg, Ret, FnStorage, FutureStorage>
 {
     const fn new_impl<F: AsyncFnMutSend<'capture, Arg, Ret>>(storage: FnStorage) -> Self {
-        Self(LocalDynAsyncFnMut {
-            storage: DynStorage {
-                storage,
-                vtable: &AsyncVTable {
-                    call: |func, arg, fut, _| {
-                        store_future(fut, unsafe { func.cast::<F>().as_mut().call(arg) })
-                    },
-                    call_sync: None,
-                    drop_vtable: const { DropVTable::new::<FnStorage, F>() },
-                },
+        let vtable = &AsyncVTable {
+            call: |func: NonNull<()>, arg, fut, _| {
+                store_future(fut, unsafe { func.cast::<F>().as_mut().call(arg) })
             },
+            call_sync: None,
+            drop_vtable: const { DropVTable::new::<FnStorage, F>() },
+        };
+        Self(LocalDynAsyncFnMut {
+            storage: unsafe { DynStorage::new(storage, vtable) },
             _capture: PhantomData,
         })
     }
@@ -425,7 +423,9 @@ impl<
     }
 
     pub async fn call<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-        SendFuture(self.0.call(arg)).await
+        // SAFETY: Future returned by `AsyncFnMutSend` implements `Send`,
+        // and futures capturing a `Send + Sync` function also implements `Send`
+        unsafe { SendFuture::new(self.0.call(arg)).await }
     }
 
     pub fn call_sync<'a>(&mut self, arg: Arg::Of<'a>) -> Option<Ret::Of<'a>> {
@@ -433,7 +433,9 @@ impl<
     }
 
     pub async fn call_try_sync<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
-        SendFuture(self.0.call_try_sync(arg)).await
+        // SAFETY: Future returned by `AsyncFnMutSend` implements `Send`,
+        // and futures capturing a `Send + Sync` function also implements `Send`
+        unsafe { SendFuture::new(self.0.call_try_sync(arg)).await }
     }
 }
 
@@ -465,19 +467,17 @@ impl<
     >(
         storage: FnStorage,
     ) -> Self {
-        Self {
-            storage: DynStorage {
-                storage,
-                vtable: &AsyncVTable {
-                    call: |func, arg, fut, _| {
-                        store_future(fut, unsafe {
-                            StorageMoved::<FnStorage, F>::new(func).read()(arg, PhantomData)
-                        })
-                    },
-                    call_sync: None,
-                    drop_vtable: const { DropVTable::new::<FnStorage, F>() },
-                },
+        let vtable = &AsyncVTable {
+            call: |func, arg, fut, _| {
+                store_future(fut, unsafe {
+                    StorageMoved::<FnStorage, F>::new(func).read()(arg, PhantomData)
+                })
             },
+            call_sync: None,
+            drop_vtable: const { DropVTable::new::<FnStorage, F>() },
+        };
+        Self {
+            storage: unsafe { DynStorage::new(storage, vtable) },
             _capture: PhantomData,
         }
     }
@@ -487,43 +487,45 @@ impl<
     >(
         storage: FnStorage,
     ) -> Self {
-        Self {
-            storage: DynStorage {
-                storage,
-                vtable: &AsyncVTable {
-                    call: |func, arg, fut, _| {
-                        store_future(fut, async move {
-                            unsafe {
-                                StorageMoved::<FnStorage, F>::new(func).read()(arg, PhantomData)
-                            }
-                        })
-                    },
-                    call_sync: Some(|func, arg, _| unsafe {
-                        StorageMoved::<FnStorage, F>::new(func).read()(arg, PhantomData)
-                    }),
-                    drop_vtable: const { DropVTable::new::<FnStorage, F>() },
-                },
+        let vtable = &AsyncVTable {
+            call: |func, arg, fut, _| {
+                store_future(fut, async move {
+                    unsafe { StorageMoved::<FnStorage, F>::new(func).read()(arg, PhantomData) }
+                })
             },
+            call_sync: Some(|func, arg, _| unsafe {
+                StorageMoved::<FnStorage, F>::new(func).read()(arg, PhantomData)
+            }),
+            drop_vtable: const { DropVTable::new::<FnStorage, F>() },
+        };
+        Self {
+            storage: unsafe { DynStorage::new(storage, vtable) },
             _capture: PhantomData,
         }
     }
 
     pub fn is_sync(&self) -> bool {
-        self.storage.vtable.call_sync.is_some()
+        self.storage.vtable().call_sync.is_some()
     }
 
     pub async fn call<'a>(self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
         let mut storage = ManuallyDrop::new(self.storage);
         let mut future = MaybeUninit::uninit();
-        let vtable =
-            unsafe { (storage.vtable.call)(&mut storage.storage, arg, &mut future, PhantomData) };
+        let vtable = unsafe {
+            (storage.vtable().call)(
+                DynStorage::move_storage(&mut storage),
+                arg,
+                &mut future,
+                PhantomData,
+            )
+        };
         unsafe { poll_future(vtable, &mut future) }.await
     }
 
     pub fn call_sync(self, arg: Arg::Of<'_>) -> Option<Ret::Of<'_>> {
-        let call_sync = self.storage.vtable.call_sync?;
+        let call_sync = self.storage.vtable().call_sync?;
         let mut storage = ManuallyDrop::new(self.storage);
-        unsafe { call_sync(&mut storage.storage, arg, PhantomData) }.into()
+        unsafe { call_sync(DynStorage::move_storage(&mut storage), arg, PhantomData) }.into()
     }
 
     pub async fn call_try_sync<'a>(self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
@@ -558,19 +560,17 @@ impl<
 > DynAsyncFnOnce<'capture, Arg, Ret, FnStorage, FutureStorage>
 {
     const fn new_impl<F: AsyncFnOnceSend<'capture, Arg, Ret>>(storage: FnStorage) -> Self {
-        Self(LocalDynAsyncFnOnce {
-            storage: DynStorage {
-                storage,
-                vtable: &AsyncVTable {
-                    call: |func, arg, fut, _| {
-                        store_future(fut, unsafe {
-                            StorageMoved::<FnStorage, F>::new(func).read().call(arg)
-                        })
-                    },
-                    call_sync: None,
-                    drop_vtable: const { DropVTable::new::<FnStorage, F>() },
-                },
+        let vtable = &AsyncVTable {
+            call: |func, arg, fut, _| {
+                store_future(fut, unsafe {
+                    StorageMoved::<FnStorage, F>::new(func).read().call(arg)
+                })
             },
+            call_sync: None,
+            drop_vtable: const { DropVTable::new::<FnStorage, F>() },
+        };
+        Self(LocalDynAsyncFnOnce {
+            storage: unsafe { DynStorage::new(storage, vtable) },
             _capture: PhantomData,
         })
     }
@@ -588,6 +588,8 @@ impl<
     }
 
     pub async fn call<'a>(self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
+        // SAFETY: Future returned by `AsyncFnOnceSend` implements `Send`,
+        // and futures capturing a `Send + Sync` function also implements `Send`
         unsafe { SendFuture::new(self.0.call(arg)).await }
     }
 
@@ -596,6 +598,8 @@ impl<
     }
 
     pub async fn call_try_sync<'a>(self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
+        // SAFETY: Future returned by `AsyncFnOnceSend` implements `Send`,
+        // and futures capturing a `Send + Sync` function also implements `Send`
         unsafe { SendFuture::new(self.0.call_try_sync(arg)).await }
     }
 }
