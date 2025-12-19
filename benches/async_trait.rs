@@ -39,7 +39,7 @@ impl<F: Future> FutureExt for F {}
 #[divan::bench]
 fn dyn_async_trait(b: Bencher) {
     let dyn_bar = black_box(Box::new(Foo) as Box<dyn Bar>);
-    b.bench_local(|| dyn_bar.call("test").now_or_never())
+    b.bench_local(|| dyn_bar.call("test").now_or_never());
 }
 
 #[divan::bench]
@@ -47,7 +47,7 @@ fn dyn_async_fn(b: Bencher) {
     let dyn_async_fn = black_box(LocalDynAsyncFn::<ForRef<str>, ForFixed<usize>>::new(
         async |s: &str, _| s.len(),
     ));
-    b.bench_local(|| dyn_async_fn.call("test").now_or_never())
+    b.bench_local(|| dyn_async_fn.call("test").now_or_never());
 }
 
 #[divan::bench]
@@ -55,7 +55,7 @@ fn dyn_async_fn_sync(b: Bencher) {
     let dyn_async_fn = black_box(LocalDynAsyncFn::<ForRef<str>, ForFixed<usize>>::new_sync(
         |s: &str, _| s.len(),
     ));
-    b.bench_local(|| dyn_async_fn.call("test").now_or_never())
+    b.bench_local(|| dyn_async_fn.call("test").now_or_never());
 }
 
 #[divan::bench]
@@ -63,7 +63,7 @@ fn dyn_async_fn_sync_try(b: Bencher) {
     let dyn_async_fn = black_box(LocalDynAsyncFn::<ForRef<str>, ForFixed<usize>>::new_sync(
         |s: &str, _| s.len(),
     ));
-    b.bench_local(|| dyn_async_fn.call_try_sync("test").now_or_never())
+    b.bench_local(|| dyn_async_fn.call_try_sync("test").now_or_never());
 }
 
 #[divan::bench]
@@ -75,7 +75,7 @@ fn dyn_async_fn_sync_try_manual(b: Bencher) {
         dyn_async_fn
             .call_sync("test")
             .or_else(|| dyn_async_fn.call("test").now_or_never())
-    })
+    });
 }
 
 #[divan::bench]
@@ -86,7 +86,7 @@ fn dyn_async_fn_raw(b: Bencher) {
         storage::Box,
         storage::Raw<{ 16 * size_of::<usize>() }>,
     >::new(async |s: &str, _| s.len()));
-    b.bench_local(|| dyn_async_fn.call("test").now_or_never())
+    b.bench_local(|| dyn_async_fn.call("test").now_or_never());
 }
 
 #[divan::bench]
@@ -97,7 +97,7 @@ fn dyn_async_fn_box(b: Bencher) {
         storage::Box,
         storage::Box,
     >::new(async |s: &str, _| s.len()));
-    b.bench_local(|| dyn_async_fn.call("test").now_or_never())
+    b.bench_local(|| dyn_async_fn.call("test").now_or_never());
 }
 
 fn main() {

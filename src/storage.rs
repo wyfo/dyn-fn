@@ -548,7 +548,7 @@ mod tests {
             let array = core::array::from_fn::<u8, N, _>(|i| i as u8);
             let storage = TestStorage::<super::RawOrBox<8>>::new_test(array);
             assert!(variant(&storage.storage));
-            assert_eq!(unsafe { storage.ptr::<[u8; N]>().read() }, array)
+            assert_eq!(unsafe { storage.ptr::<[u8; N]>().read() }, array);
         }
         check_variant::<4>(|s| matches!(s.0, super::RawOrBoxInner::Raw(_)));
         check_variant::<64>(|s| matches!(s.0, super::RawOrBoxInner::Box(_)));
