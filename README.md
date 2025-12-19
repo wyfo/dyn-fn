@@ -2,7 +2,10 @@
 
 *This crate is at an early stage of development, and is not yet released. Despite having 100% code coverage with [miri], it contains a lot of unsafe code, and there may remain some uncaught unsoundness.* 
 
-*Documentation is available at [https://wyfo.github.io/dyn-fn/](https://wyfo.github.io/dyn-fn/). You can test the crate using a git dependency: `dyn-fn = { git = "https://github.com/wyfo/dyn-fn" }`.*
+*Documentation is available at [https://wyfo.github.io/dyn-fn/](https://wyfo.github.io/dyn-fn/). You can test the crate using a git dependency:*
+```toml
+dyn-fn = { git = "https://github.com/wyfo/dyn-fn" }
+```
 
 # dyn-fn
 
