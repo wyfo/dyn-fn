@@ -13,7 +13,8 @@ macro_rules! new_impls {
             pub fn $new<F: $($f)*>(
                 f: F,
             ) -> Self {
-                Self::$new_impl::<F>(FnStorage::new(f))
+                // SAFETY: storage is initialized with `F`
+                unsafe { Self::$new_impl::<F>(FnStorage::new(f)) }
             }
         }
 
@@ -23,7 +24,8 @@ macro_rules! new_impls {
             pub fn $new_box<F: $($f)*>(
                 f: alloc::boxed::Box<F>,
             ) -> Self {
-                Self::$new_impl::<F>(crate::storage::Box::new_box(f))
+                // SAFETY: storage is initialized with `F`
+                unsafe { Self::$new_impl::<F>(crate::storage::Box::new_box(f)) }
             }
         }
 
@@ -41,7 +43,8 @@ macro_rules! new_impls {
             pub fn $new_box<F: $($f)*>(
                 f: alloc::boxed::Box<F>,
             ) -> Self {
-                Self::$new_impl::<F>(crate::storage::RawOrBox::new_box(f))
+                // SAFETY: storage is initialized with `F`
+                unsafe { Self::$new_impl::<F>(crate::storage::RawOrBox::new_box(f)) }
             }
         }
     };
@@ -52,7 +55,8 @@ macro_rules! new_impls {
             pub fn $new_rc<F: $($f)*>(
                 f: alloc::rc::Rc<F>,
             ) -> Self {
-                Self::$new_impl::<F>(crate::storage::Rc::new_rc(f))
+                // SAFETY: storage is initialized with `F`
+                unsafe { Self::$new_impl::<F>(crate::storage::Rc::new_rc(f)) }
             }
         }
     };
@@ -64,7 +68,8 @@ macro_rules! new_impls {
             pub fn $new_arc<F: $($f)*>(
                 f: alloc::sync::Arc<F>,
             ) -> Self {
-                Self::$new_impl::<F>(crate::storage::Arc::new_arc(f))
+                // SAFETY: storage is initialized with `F`
+                unsafe { Self::$new_impl::<F>(crate::storage::Arc::new_arc(f)) }
             }
         }
     };

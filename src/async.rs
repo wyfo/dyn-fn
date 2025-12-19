@@ -36,7 +36,7 @@ pub trait AsyncFnOnceSend<'capture, Arg: ForLt + 'static, Ret: ForLt>:
 
 #[expect(type_alias_bounds)]
 type PollFn<Ret: ForLt> =
-    for<'a> unsafe fn(NonNull<()>, &mut Context<'_>, PhantomData<&'a ()>) -> Poll<Ret::Of<'a>>;
+    for<'a> fn(NonNull<()>, &mut Context<'_>, PhantomData<&'a ()>) -> Poll<Ret::Of<'a>>;
 
 struct FutureVTable<Ret: ForLt> {
     poll: PollFn<Ret>,
@@ -55,6 +55,10 @@ fn store_future<
 ) -> &'static FutureVTable<Ret> {
     storage.write(FutureStorage::new(future));
     &FutureVTable {
+        // SAFETY: `poll` is called in poll_future, and
+        // - `fut` is the future `Fut` written in the storage
+        // - the lifetime passed is the real one, so it can be transmuted
+        // - the future is never moved during the polling
         poll: |fut, cx, _| unsafe {
             mem::transmute::<Poll<Ret::Of<'a>>, Poll<Ret::Of<'_>>>(
                 Pin::new_unchecked(fut.cast::<Fut>().as_mut()).poll(cx),
@@ -78,13 +82,16 @@ async unsafe fn poll_future<'a, FutureStorage: StorageMut, Ret: ForLt + 'static>
             self.0();
         }
     }
+    // SAFETY: `future` is initialized and `vtable` matches the future stored;
+    // the storage is no longer accessed after the call (because it's dropped)
     let _guard = DropGuard(|| unsafe { vtable.drop_vtable.drop_storage(&mut *future) });
+    // SAFETY: `future` is initialized
     poll_fn(|cx| unsafe { (vtable.poll)((*future).ptr_mut(), cx, PhantomData) }).await
 }
 
 #[expect(type_alias_bounds)]
 type Call<Arg: ForLt, Ret: ForLt + 'static, FutureStorage, T> =
-    for<'a> unsafe fn(
+    for<'a> fn(
         NonNull<T>,
         Arg::Of<'a>,
         &mut MaybeUninit<FutureStorage>,
@@ -93,7 +100,7 @@ type Call<Arg: ForLt, Ret: ForLt + 'static, FutureStorage, T> =
 
 #[expect(type_alias_bounds)]
 type CallSync<Arg: ForLt, Ret: ForLt, T> =
-    for<'a, 'b> unsafe fn(NonNull<T>, Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a>;
+    for<'a, 'b> fn(NonNull<T>, Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a>;
 
 struct AsyncVTable<Arg: ForLt, Ret: ForLt + 'static, FutureStorage, T: 'static = ()> {
     call: Call<Arg, Ret, FutureStorage, T>,
@@ -118,10 +125,12 @@ impl<F> SendFuture<F> {
     }
 }
 
+// SAFETY: `SendFuture` is a wrapper around `F`, which implements `Send` as per `SendFuture::new`
 unsafe impl<F> Send for SendFuture<F> {}
 impl<F: Future> Future for SendFuture<F> {
     type Output = F::Output;
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        // SAFETY: pin projection
         unsafe { self.map_unchecked_mut(|this| &mut this.0) }.poll(cx)
     }
 }
@@ -145,25 +154,33 @@ impl<
     FutureStorage: StorageMut,
 > LocalDynAsyncFn<'capture, Arg, Ret, FnStorage, FutureStorage>
 {
-    const fn new_impl<
+    /// # Safety
+    ///
+    /// `storage` must have been initialized with `F`.
+    const unsafe fn new_impl<
         F: for<'a> AsyncFn(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + 'capture,
     >(
         storage: FnStorage,
     ) -> Self {
         let vtable = &AsyncVTable {
             call: |func, arg, fut, _| {
+                // SAFETY: func comes from `self.storage.ptr()`, so it's a valid `&F`
                 store_future(fut, unsafe { func.cast::<F>().as_ref()(arg, PhantomData) })
             },
             call_sync: None,
             drop_vtable: const { DropVTable::new::<FnStorage, F>() },
         };
         Self {
+            // SAFETY: `drop_vtable` matches the storage
             storage: unsafe { DynStorage::new(storage, vtable) },
             _capture: PhantomData,
         }
     }
 
-    const fn new_sync_impl<
+    /// # Safety
+    ///
+    /// `storage` must have been initialized with `F`.
+    const unsafe fn new_sync_impl<
         F: for<'a> Fn(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + 'capture,
     >(
         storage: FnStorage,
@@ -171,13 +188,16 @@ impl<
         let vtable = &AsyncVTable {
             call: |func, arg, fut, _| {
                 store_future(fut, async move {
+                    // SAFETY: func comes from `self.storage.ptr()`, so it's a valid `&F`
                     unsafe { func.cast::<F>().as_ref()(arg, PhantomData) }
                 })
             },
+            // SAFETY: func comes from `self.storage.ptr()`, so it's a valid `&F`
             call_sync: Some(|func, arg, _| unsafe { func.cast::<F>().as_ref()(arg, PhantomData) }),
             drop_vtable: const { DropVTable::new::<FnStorage, F>() },
         };
         Self {
+            // SAFETY: `drop_vtable` matches the storage
             storage: unsafe { DynStorage::new(storage, vtable) },
             _capture: PhantomData,
         }
@@ -189,9 +209,10 @@ impl<
 
     pub async fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
         let mut future = MaybeUninit::uninit();
-        let vtable = unsafe {
-            (self.storage.vtable().call)(self.storage.ptr(), arg, &mut future, PhantomData)
-        };
+        let vtable =
+            (self.storage.vtable().call)(self.storage.ptr(), arg, &mut future, PhantomData);
+        // SAFETY: `future` has been initialized in `call`, and the vtable
+        // returned by `store_future` matches the future stored
         unsafe { poll_future(vtable, &mut future) }.await
     }
 
@@ -199,7 +220,7 @@ impl<
     // Anyway, it surely comes from https://github.com/taiki-e/cargo-llvm-cov/issues/394
     #[cfg_attr(coverage_nightly, coverage(off))]
     pub fn call_sync<'a>(&self, arg: Arg::Of<'a>) -> Option<Ret::Of<'a>> {
-        unsafe { self.storage.vtable().call_sync?(self.storage.ptr(), arg, PhantomData) }.into()
+        self.storage.vtable().call_sync?(self.storage.ptr(), arg, PhantomData).into()
     }
 
     pub async fn call_try_sync<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
@@ -235,26 +256,35 @@ impl<
     FutureStorage: StorageMut,
 > DynAsyncFn<'capture, Arg, Ret, FnStorage, FutureStorage>
 {
-    const fn new_impl<F: AsyncFnSend<'capture, Arg, Ret>>(storage: FnStorage) -> Self {
+    /// # Safety
+    ///
+    /// `storage` must have been initialized with `F`.
+    const unsafe fn new_impl<F: AsyncFnSend<'capture, Arg, Ret>>(storage: FnStorage) -> Self {
         let vtable = &AsyncVTable {
             call: |func, arg, fut, _| {
+                // SAFETY: func comes from `self.storage.ptr()`, so it's a valid `&F`
                 store_future(fut, unsafe { func.cast::<F>().as_ref().call(arg) })
             },
             call_sync: None,
             drop_vtable: const { DropVTable::new::<FnStorage, F>() },
         };
         Self(LocalDynAsyncFn {
+            // SAFETY: `drop_vtable` matches the storage
             storage: unsafe { DynStorage::new(storage, vtable) },
             _capture: PhantomData,
         })
     }
 
-    const fn new_sync_impl<
+    /// # Safety
+    ///
+    /// `storage` must have been initialized with `F`.
+    const unsafe fn new_sync_impl<
         F: for<'a> Fn(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + Send + Sync + 'capture,
     >(
         storage: FnStorage,
     ) -> Self {
-        Self(LocalDynAsyncFn::new_sync_impl::<F>(storage))
+        // SAFETY: same precondition
+        Self(unsafe { LocalDynAsyncFn::new_sync_impl::<F>(storage) })
     }
 
     pub fn is_sync(&self) -> bool {
@@ -302,25 +332,33 @@ impl<
     FutureStorage: StorageMut,
 > LocalDynAsyncFnMut<'capture, Arg, Ret, FnStorage, FutureStorage>
 {
-    const fn new_impl<
+    /// # Safety
+    ///
+    /// `storage` must have been initialized with `F`.
+    const unsafe fn new_impl<
         F: for<'a> AsyncFnMut(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + 'capture,
     >(
         storage: FnStorage,
     ) -> Self {
         let vtable = &AsyncVTable {
             call: |func, arg, fut, _| {
+                // SAFETY: func comes from `self.storage.ptr_mut()`, so it's a valid `&mut F`
                 store_future(fut, unsafe { func.cast::<F>().as_mut()(arg, PhantomData) })
             },
             call_sync: None,
             drop_vtable: const { DropVTable::new::<FnStorage, F>() },
         };
         Self {
+            // SAFETY: `drop_vtable` matches the storage
             storage: unsafe { DynStorage::new(storage, vtable) },
             _capture: PhantomData,
         }
     }
 
-    const fn new_sync_impl<
+    /// # Safety
+    ///
+    /// `storage` must have been initialized with `F`.
+    const unsafe fn new_sync_impl<
         F: for<'a> FnMut(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + 'capture,
     >(
         storage: FnStorage,
@@ -328,13 +366,16 @@ impl<
         let vtable = &AsyncVTable {
             call: |func, arg, fut, _| {
                 store_future(fut, async move {
+                    // SAFETY: func comes from `self.storage.ptr_mut()`, so it's a valid `&mut F`
                     unsafe { func.cast::<F>().as_mut()(arg, PhantomData) }
                 })
             },
+            // SAFETY: func comes from `self.storage.ptr_mut()`, so it's a valid `&mut F`
             call_sync: Some(|func, arg, _| unsafe { func.cast::<F>().as_mut()(arg, PhantomData) }),
             drop_vtable: const { DropVTable::new::<FnStorage, F>() },
         };
         Self {
+            // SAFETY: `drop_vtable` matches the storage
             storage: unsafe { DynStorage::new(storage, vtable) },
             _capture: PhantomData,
         }
@@ -346,14 +387,15 @@ impl<
 
     pub async fn call<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
         let mut future = MaybeUninit::uninit();
-        let vtable = unsafe {
-            (self.storage.vtable().call)(self.storage.ptr_mut(), arg, &mut future, PhantomData)
-        };
+        let vtable =
+            (self.storage.vtable().call)(self.storage.ptr_mut(), arg, &mut future, PhantomData);
+        // SAFETY: `future` has been initialized in `call`, and the vtable
+        // returned by `store_future` matches the future stored
         unsafe { poll_future(vtable, &mut future) }.await
     }
 
     pub fn call_sync<'a>(&mut self, arg: Arg::Of<'a>) -> Option<Ret::Of<'a>> {
-        unsafe { self.storage.vtable().call_sync?(self.storage.ptr_mut(), arg, PhantomData) }.into()
+        self.storage.vtable().call_sync?(self.storage.ptr_mut(), arg, PhantomData).into()
     }
 
     pub async fn call_try_sync<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
@@ -387,26 +429,35 @@ impl<
     FutureStorage: StorageMut,
 > DynAsyncFnMut<'capture, Arg, Ret, FnStorage, FutureStorage>
 {
-    const fn new_impl<F: AsyncFnMutSend<'capture, Arg, Ret>>(storage: FnStorage) -> Self {
+    /// # Safety
+    ///
+    /// `storage` must have been initialized with `F`.
+    const unsafe fn new_impl<F: AsyncFnMutSend<'capture, Arg, Ret>>(storage: FnStorage) -> Self {
         let vtable = &AsyncVTable {
             call: |func, arg, fut, _| {
+                // SAFETY: func comes from `self.storage.ptr_mut()`, so it's a valid `&mut F`
                 store_future(fut, unsafe { func.cast::<F>().as_mut().call(arg) })
             },
             call_sync: None,
             drop_vtable: const { DropVTable::new::<FnStorage, F>() },
         };
         Self(LocalDynAsyncFnMut {
+            // SAFETY: `drop_vtable` matches the storage
             storage: unsafe { DynStorage::new(storage, vtable) },
             _capture: PhantomData,
         })
     }
 
-    const fn new_sync_impl<
+    /// # Safety
+    ///
+    /// `storage` must have been initialized with `F`.
+    const unsafe fn new_sync_impl<
         F: for<'a> FnMut(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + Send + Sync + 'capture,
     >(
         storage: FnStorage,
     ) -> Self {
-        Self(LocalDynAsyncFnMut::new_sync_impl::<F>(storage))
+        // SAFETY: same precondition
+        Self(unsafe { LocalDynAsyncFnMut::new_sync_impl::<F>(storage) })
     }
 
     pub fn is_sync(&self) -> bool {
@@ -453,13 +504,18 @@ impl<
     FutureStorage: StorageMut,
 > LocalDynAsyncFnOnce<'capture, Arg, Ret, FnStorage, FutureStorage>
 {
-    const fn new_impl<
+    /// # Safety
+    ///
+    /// `storage` must have been initialized with `F`.
+    const unsafe fn new_impl<
         F: for<'a> AsyncFnOnce(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + 'capture,
     >(
         storage: FnStorage,
     ) -> Self {
         let vtable = &AsyncVTable {
             call: |func, arg, fut, _| {
+                // SAFETY: storage comes from `DynStorage::move_storage`,
+                // so it's a valid `F`, and is never accessed after; `read`is called once
                 store_future(fut, unsafe {
                     StorageMoved::<FnStorage, F>::new(func).read()(arg, PhantomData)
                 })
@@ -468,12 +524,16 @@ impl<
             drop_vtable: const { DropVTable::new::<FnStorage, F>() },
         };
         Self {
+            // SAFETY: `drop_vtable` matches the storage
             storage: unsafe { DynStorage::new(storage, vtable) },
             _capture: PhantomData,
         }
     }
 
-    const fn new_sync_impl<
+    /// # Safety
+    ///
+    /// `storage` must have been initialized with `F`.
+    const unsafe fn new_sync_impl<
         F: for<'a> FnOnce(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + 'capture,
     >(
         storage: FnStorage,
@@ -481,15 +541,20 @@ impl<
         let vtable = &AsyncVTable {
             call: |func, arg, fut, _| {
                 store_future(fut, async move {
+                    // SAFETY: storage comes from `DynStorage::move_storage`,
+                    // so it's a valid `F`, and is never accessed after; `read`is called once
                     unsafe { StorageMoved::<FnStorage, F>::new(func).read()(arg, PhantomData) }
                 })
             },
+            // SAFETY: storage comes from `DynStorage::move_storage`,
+            // so it's a valid `F`, and is never accessed after; `read`is called once
             call_sync: Some(|func, arg, _| unsafe {
                 StorageMoved::<FnStorage, F>::new(func).read()(arg, PhantomData)
             }),
             drop_vtable: const { DropVTable::new::<FnStorage, F>() },
         };
         Self {
+            // SAFETY: `drop_vtable` matches the storage
             storage: unsafe { DynStorage::new(storage, vtable) },
             _capture: PhantomData,
         }
@@ -502,21 +567,20 @@ impl<
     pub async fn call<'a>(self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
         let mut storage = ManuallyDrop::new(self.storage);
         let mut future = MaybeUninit::uninit();
-        let vtable = unsafe {
-            (storage.vtable().call)(
-                DynStorage::move_storage(&mut storage),
-                arg,
-                &mut future,
-                PhantomData,
-            )
-        };
+        // SAFETY: `moved_storage` is passed to `StorageMoved` in `call`
+        let moved_storage = unsafe { DynStorage::move_storage(&mut storage) };
+        let vtable = (storage.vtable().call)(moved_storage, arg, &mut future, PhantomData);
+        // SAFETY: `future` has been initialized in `call`, and the vtable
+        // returned by `store_future` matches the future stored
         unsafe { poll_future(vtable, &mut future) }.await
     }
 
     pub fn call_sync(self, arg: Arg::Of<'_>) -> Option<Ret::Of<'_>> {
         let call_sync = self.storage.vtable().call_sync?;
         let mut storage = ManuallyDrop::new(self.storage);
-        unsafe { call_sync(DynStorage::move_storage(&mut storage), arg, PhantomData) }.into()
+        // SAFETY: `moved_storage` is passed to `StorageMoved` in `call_sync`
+        let moved_storage = unsafe { DynStorage::move_storage(&mut storage) };
+        call_sync(moved_storage, arg, PhantomData).into()
     }
 
     pub async fn call_try_sync<'a>(self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
@@ -550,9 +614,14 @@ impl<
     FutureStorage: StorageMut,
 > DynAsyncFnOnce<'capture, Arg, Ret, FnStorage, FutureStorage>
 {
-    const fn new_impl<F: AsyncFnOnceSend<'capture, Arg, Ret>>(storage: FnStorage) -> Self {
+    /// # Safety
+    ///
+    /// `storage` must have been initialized with `F`.
+    const unsafe fn new_impl<F: AsyncFnOnceSend<'capture, Arg, Ret>>(storage: FnStorage) -> Self {
         let vtable = &AsyncVTable {
             call: |func, arg, fut, _| {
+                // SAFETY: storage comes from `DynStorage::move_storage`,
+                // so it's a valid `F`, and is never accessed after; `read`is called once
                 store_future(fut, unsafe {
                     StorageMoved::<FnStorage, F>::new(func).read().call(arg)
                 })
@@ -561,17 +630,22 @@ impl<
             drop_vtable: const { DropVTable::new::<FnStorage, F>() },
         };
         Self(LocalDynAsyncFnOnce {
+            // SAFETY: `drop_vtable` matches the storage
             storage: unsafe { DynStorage::new(storage, vtable) },
             _capture: PhantomData,
         })
     }
 
-    const fn new_sync_impl<
+    /// # Safety
+    ///
+    /// `storage` must have been initialized with `F`.
+    const unsafe fn new_sync_impl<
         F: for<'a> FnOnce(Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a> + Send + Sync + 'capture,
     >(
         storage: FnStorage,
     ) -> Self {
-        Self(LocalDynAsyncFnOnce::new_sync_impl::<F>(storage))
+        // SAFETY: same precondition
+        Self(unsafe { LocalDynAsyncFnOnce::new_sync_impl::<F>(storage) })
     }
 
     pub fn is_sync(&self) -> bool {
