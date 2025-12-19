@@ -25,6 +25,7 @@ impl<Arg: ForLt + 'static, Ret: ForLt + 'static, T: 'static> VTable for SyncVTab
     }
 }
 
+/// [`DynFn`], but without the [`Send`] + [`Sync`] requirement.
 pub struct LocalDynFn<
     'capture,
     Arg: ForLt + 'static,
@@ -58,6 +59,7 @@ impl<'capture, Arg: ForLt + 'static, Ret: ForLt + 'static, FnStorage: Storage>
         }
     }
 
+    /// Calls the underlying function.
     pub fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
         (self.storage.vtable().call)(self.storage.ptr(), arg, PhantomData)
     }
@@ -68,6 +70,7 @@ new_impls!(sync LocalDynFn, Storage, for<'a> Fn(Arg::Of<'a>, PhantomData<&'a ()>
 impl_clone!(sync LocalDynFn, Storage);
 impl_debug!(sync LocalDynFn, Storage);
 
+/// A dynamic [`Fn`] stored in `FnStorage`.
 pub struct DynFn<
     'capture,
     Arg: ForLt + 'static,
@@ -92,6 +95,7 @@ impl<'capture, Arg: ForLt + 'static, Ret: ForLt + 'static, FnStorage: Storage + 
         Self(unsafe { LocalDynFn::new_impl::<F>(storage) })
     }
 
+    /// Calls the underlying function.
     pub fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
         self.0.call(arg)
     }
@@ -102,6 +106,7 @@ new_impls!(sync DynFn, Storage + StorageSend, for<'a> Fn(Arg::Of<'a>, PhantomDat
 impl_clone!(sync DynFn, Storage + StorageSend);
 impl_debug!(sync DynFn, Storage + StorageSend);
 
+/// [`DynFnMut`], but without the [`Send`] + [`Sync`] requirement.
 pub struct LocalDynFnMut<
     'capture,
     Arg: ForLt + 'static,
@@ -135,6 +140,7 @@ impl<'capture, Arg: ForLt + 'static, Ret: ForLt + 'static, FnStorage: StorageMut
         }
     }
 
+    /// Calls the underlying function.
     pub fn call<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
         (self.storage.vtable().call)(self.storage.ptr_mut(), arg, PhantomData)
     }
@@ -144,6 +150,7 @@ new_impls!(sync LocalDynFnMut, StorageMut, for<'a> FnMut(Arg::Of<'a>, PhantomDat
 
 impl_debug!(sync LocalDynFnMut, StorageMut);
 
+/// A dynamic [`FnMut`] stored in `FnStorage`.
 pub struct DynFnMut<
     'capture,
     Arg: ForLt + 'static,
@@ -168,6 +175,7 @@ impl<'capture, Arg: ForLt + 'static, Ret: ForLt + 'static, FnStorage: StorageMut
         Self(unsafe { LocalDynFnMut::new_impl::<F>(storage) })
     }
 
+    /// Calls the underlying function.
     pub fn call<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
         self.0.call(arg)
     }
@@ -177,6 +185,7 @@ new_impls!(sync DynFnMut, StorageMut + StorageSend, for<'a> FnMut(Arg::Of<'a>, P
 
 impl_debug!(sync DynFnMut, StorageMut + StorageSend);
 
+/// [`DynFnOnce`], but without the [`Send`] + [`Sync`] requirement.
 pub struct LocalDynFnOnce<
     'capture,
     Arg: ForLt + 'static,
@@ -213,6 +222,7 @@ impl<'capture, Arg: ForLt + 'static, Ret: ForLt + 'static, FnStorage: StorageMut
         }
     }
 
+    /// Calls the underlying function.
     pub fn call(self, arg: Arg::Of<'_>) -> Ret::Of<'_> {
         let mut storage = ManuallyDrop::new(self.storage);
         // SAFETY: `moved_storage` is passed to `StorageMoved` in `call`
@@ -225,6 +235,7 @@ new_impls!(sync LocalDynFnOnce, StorageMut, for<'a> FnOnce(Arg::Of<'a>, PhantomD
 
 impl_debug!(sync LocalDynFnOnce, StorageMut);
 
+/// A dynamic [`FnOnce`] stored in `FnStorage`.
 pub struct DynFnOnce<
     'capture,
     Arg: ForLt + 'static,
@@ -249,6 +260,7 @@ impl<'capture, Arg: ForLt + 'static, Ret: ForLt + 'static, FnStorage: StorageMut
         Self(unsafe { LocalDynFnOnce::new_impl::<F>(storage) })
     }
 
+    /// Calls the underlying function.
     pub fn call(self, arg: Arg::Of<'_>) -> Ret::Of<'_> {
         self.0.call(arg)
     }

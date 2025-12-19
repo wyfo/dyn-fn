@@ -1,15 +1,16 @@
 macro_rules! new_impls {
     (sync $name:ident, $fn_storage:ident $(+ $storage_send:ident)?, $($f:tt)*) => {
-        crate::macros::new_impls!(@ $name, $fn_storage $(+ $storage_send)?, {$($f)*}, new_impl, new, new_box, new_rc, new_arc);
+        crate::macros::new_impls!(@ $name, $fn_storage $(+ $storage_send)?, {$($f)*}, new_impl, new, new_raw, new_box, new_rc, new_arc);
     };
     (async $name:ident, $fn_storage:ident $(+ $storage_send:ident)?, [$($f_sync:tt)*], $($f:tt)*) => {
-        crate::macros::new_impls!(@ $name, $fn_storage $(+ $storage_send)?, {$($f)*}, new_impl, new,  new_box, new_rc, new_arc, FutureStorage);
-        crate::macros::new_impls!(@ $name, $fn_storage $(+ $storage_send)?, {$($f_sync)*}, new_sync_impl, new_sync, new_sync_box, new_sync_rc, new_sync_arc, FutureStorage);
+        crate::macros::new_impls!(@ $name, $fn_storage $(+ $storage_send)?, {$($f)*}, new_impl, new, new_raw, new_box, new_rc, new_arc, FutureStorage);
+        crate::macros::new_impls!(@ $name, $fn_storage $(+ $storage_send)?, {$($f_sync)*}, new_sync_impl, new_sync, new_sync_raw, new_sync_box, new_sync_rc, new_sync_arc, FutureStorage);
     };
-    (@ $name:ident, $fn_storage:ident $(+ $storage_send:ident)?, {$($f:tt)*}, $new_impl:ident, $new:ident, $new_box:ident, $new_rc:ident, $new_arc:ident $(, $future_storage:ident)?) => {
+    (@ $name:ident, $fn_storage:ident $(+ $storage_send:ident)?, {$($f:tt)*}, $new_impl:ident, $new:ident, $new_box:ident, $new_raw:ident, $new_rc:ident, $new_arc:ident $(, $future_storage:ident)?) => {
         impl<'capture, Arg: ForLt, Ret: ForLt, FnStorage: $fn_storage $(+ $storage_send)?, $($future_storage: StorageMut)?>
             $name<'capture, Arg, Ret, FnStorage, $($future_storage)?>
         {
+            #[doc = crate::macros::new_impls!(@ doc $name, $new_impl)]
             pub fn $new<F: $($f)*>(
                 f: F,
             ) -> Self {
@@ -19,7 +20,25 @@ macro_rules! new_impls {
         }
 
         #[cfg(feature = "alloc")]
+        impl<'capture, Arg: ForLt, Ret: ForLt, const SIZE: usize, const ALIGN: usize, $($future_storage: StorageMut)?>
+            $name<'capture, Arg, Ret, crate::storage::Raw<SIZE, ALIGN>, $($future_storage)?>
+        where
+            elain::Align<ALIGN>: elain::Alignment,
+        {
+            #[doc = crate::macros::new_impls!(@ doc $name, $new_impl)]
+            #[cfg_attr(coverage_nightly, coverage(off))]
+            #[cfg(feature = "alloc")]
+            pub const fn $new_raw<F: $($f)*>(
+                f: alloc::boxed::Box<F>,
+            ) -> Self {
+                // SAFETY: storage is initialized with `F`
+                unsafe { Self::$new_impl::<F>(crate::storage::Raw::new(f)) }
+            }
+        }
+
+        #[cfg(feature = "alloc")]
         impl<'capture, Arg: ForLt, Ret: ForLt, $($future_storage: StorageMut)?> $name<'capture, Arg, Ret, crate::storage::Box, $($future_storage)?> {
+            #[doc = crate::macros::new_impls!(@ doc $name, $new_impl "boxed")]
             #[cfg_attr(coverage_nightly, coverage(off))]
             pub fn $new_box<F: $($f)*>(
                 f: alloc::boxed::Box<F>,
@@ -38,6 +57,17 @@ macro_rules! new_impls {
         where
             elain::Align<ALIGN>: elain::Alignment,
         {
+            #[doc = crate::macros::new_impls!(@ doc $name, $new_impl)]
+            #[cfg_attr(coverage_nightly, coverage(off))]
+            #[cfg(feature = "alloc")]
+            pub fn $new_raw<F: $($f)*>(
+                f: F,
+            ) -> Self {
+                // SAFETY: storage is initialized with `F`
+                unsafe { Self::$new_impl::<F>(crate::storage::RawOrBox::new_raw(f)) }
+            }
+
+            #[doc = crate::macros::new_impls!(@ doc $name, $new_impl "boxed")]
             #[cfg_attr(coverage_nightly, coverage(off))]
             #[cfg(feature = "alloc")]
             pub fn $new_box<F: $($f)*>(
@@ -51,6 +81,7 @@ macro_rules! new_impls {
     (@ rc $name:ident, Storage, {$($f:tt)*}, $new_impl:ident, $new_rc:ident $(, $future_storage:ident)?) => {
         #[cfg(feature = "alloc")]
         impl<'capture, Arg: ForLt, Ret: ForLt, $($future_storage: StorageMut)?> $name<'capture, Arg, Ret, crate::storage::Rc, $($future_storage)?> {
+            #[doc = crate::macros::new_impls!(@ doc $name, $new_impl "reference-counted")]
             #[cfg_attr(coverage_nightly, coverage(off))]
             pub fn $new_rc<F: $($f)*>(
                 f: alloc::rc::Rc<F>,
@@ -64,6 +95,7 @@ macro_rules! new_impls {
     (@ arc $name:ident, Storage $(+ $storage_send:ident)?, {$($f:tt)*}, $new_impl:ident, $new_arc:ident $(, $future_storage:ident)?) => {
         #[cfg(feature = "alloc")]
         impl<'capture, Arg: ForLt, Ret: ForLt, $($future_storage: StorageMut)?> $name<'capture, Arg, Ret, crate::storage::Arc, $($future_storage)?> {
+            #[doc = crate::macros::new_impls!(@ doc $name, $new_impl "reference-counted")]
             #[cfg_attr(coverage_nightly, coverage(off))]
             pub fn $new_arc<F: $($f)*>(
                 f: alloc::sync::Arc<F>,
@@ -74,6 +106,11 @@ macro_rules! new_impls {
         }
     };
     (@ arc $($tt:tt)*) => {};
+    (@ doc $name:ident, $($suffix:tt)*) => { concat!("Construct a new [`", stringify!($name), "`]", crate::macros::new_impls!(@ doc-suffix $($suffix)*)) };
+    (@ doc-suffix new_impl) => { "." };
+    (@ doc-suffix new_impl $func:literal) => { concat!(" from a ", $func, " function.") };
+    (@ doc-suffix new_sync_impl) => { " from as synchronous function." };
+    (@ doc-suffix new_sync_impl $func:literal) => { concat!(" from a synchronous ", $func, " function.") };
 }
 pub(crate) use new_impls;
 

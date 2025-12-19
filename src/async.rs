@@ -18,19 +18,25 @@ use crate::{
     },
 };
 
+/// A [`Send`] + [`Sync`] [`AsyncFn`] whose returned future is [`Send`]
 pub trait AsyncFnSend<'capture, Arg: ForLt + 'static, Ret: ForLt>: Send + Sync + 'capture {
+    /// Calls the function, returns a borrowed future.
     fn call<'a>(&self, arg: Arg::Of<'a>) -> impl Future<Output = Ret::Of<'a>> + Send;
 }
 
+/// A [`Send`] + [`Sync`] [`AsyncFnMut`] whose returned future is [`Send`]
 pub trait AsyncFnMutSend<'capture, Arg: ForLt + 'static, Ret: ForLt>:
     Send + Sync + 'capture
 {
+    /// Calls the function, returns a borrowed future.
     fn call<'a>(&mut self, arg: Arg::Of<'a>) -> impl Future<Output = Ret::Of<'a>> + Send;
 }
 
+/// A [`Send`] + [`Sync`] [`AsyncFnOnce`] whose returned future is [`Send`]
 pub trait AsyncFnOnceSend<'capture, Arg: ForLt + 'static, Ret: ForLt>:
     Send + Sync + 'capture
 {
+    /// Calls the function, returns a borrowed future.
     fn call(self, arg: Arg::Of<'_>) -> impl Future<Output = Ret::Of<'_>> + Send;
 }
 
@@ -135,6 +141,7 @@ impl<F: Future> Future for SendFuture<F> {
     }
 }
 
+/// [`DynAsyncFn`], but without the [`Send`] + [`Sync`] requirement.
 pub struct LocalDynAsyncFn<
     'capture,
     Arg: ForLt + 'static,
@@ -203,10 +210,12 @@ impl<
         }
     }
 
+    /// Returns whether the underlying function is synchronous.
     pub fn is_sync(&self) -> bool {
         self.storage.vtable().call_sync.is_some()
     }
 
+    /// Calls the underlying function.
     pub async fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
         let mut future = MaybeUninit::uninit();
         let vtable =
@@ -216,6 +225,7 @@ impl<
         unsafe { poll_future(vtable, &mut future) }.await
     }
 
+    /// Calls the underlying function if is synchronous.
     // TODO I've no idea why this code is not fully covered when alloc feature is enabled
     // Anyway, it surely comes from https://github.com/taiki-e/cargo-llvm-cov/issues/394
     #[cfg_attr(coverage_nightly, coverage(off))]
@@ -223,6 +233,16 @@ impl<
         self.storage.vtable().call_sync?(self.storage.ptr(), arg, PhantomData).into()
     }
 
+    /// Tries calling the underlying function as synchronous, falling back to asynchronous call.
+    ///
+    /// This is equivalent to
+    /// ```ignore
+    /// if self.is_sync() {
+    ///     self.call_sync(arg).unwrap()
+    /// } else {
+    ///     self.call(arg).await
+    /// }
+    /// ```
     pub async fn call_try_sync<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
         if self.is_sync() {
             self.call_sync(arg).unwrap()
@@ -237,6 +257,16 @@ new_impls!(async LocalDynAsyncFn, Storage, [for<'a> Fn(Arg::Of<'a>, PhantomData<
 impl_clone!(async LocalDynAsyncFn, Storage);
 impl_debug!(async LocalDynAsyncFn, Storage);
 
+/// A dynamic [`AsyncFn`] stored in `FnStorage`, whose returned future is stored in `FutureStorage`.
+///
+/// Using [`Raw`](crate::storage::Raw)/[`RawOrBox`](crate::storage::RawOrBox) storage avoids the
+/// need to allocate the returned future, which results in better performance — `RawOrBox` may
+/// fall back to `Box` allocation, but if the returned future is big enough to require it, the
+/// allocation cost may be negligible compared to polling it.
+///
+/// `DynAsyncFn` can also be initialized with a synchronous function, in which case
+/// [`call_try_sync`](Self::call_try_sync) offers a lot better performance than
+/// [`call`](Self::call).
 pub struct DynAsyncFn<
     'capture,
     Arg: ForLt + 'static,
@@ -287,23 +317,36 @@ impl<
         Self(unsafe { LocalDynAsyncFn::new_sync_impl::<F>(storage) })
     }
 
+    /// Returns whether the underlying function is synchronous.
     pub fn is_sync(&self) -> bool {
         self.0.is_sync()
     }
 
+    /// Calls the underlying function.
     pub async fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
         // SAFETY: Future returned by `AsyncFnSend` implements `Send`,
-        // and futures capturing a `Send + Sync` function also implements `Send`
+        // and futures capturing A [`Send`] + [`Sync`] function also implements `Send`
         unsafe { SendFuture::new(self.0.call(arg)).await }
     }
 
+    /// Calls the underlying function if is synchronous.
     pub fn call_sync<'a>(&self, arg: Arg::Of<'a>) -> Option<Ret::Of<'a>> {
         self.0.call_sync(arg)
     }
 
+    /// Tries calling the underlying function as synchronous, falling back to asynchronous call.
+    ///
+    /// This is equivalent to
+    /// ```ignore
+    /// if self.is_sync() {
+    ///     self.call_sync(arg).unwrap()
+    /// } else {
+    ///     self.call(arg).await
+    /// }
+    /// ```
     pub async fn call_try_sync<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
         // SAFETY: Future returned by `AsyncFnSend` implements `Send`,
-        // and futures capturing a `Send + Sync` function also implements `Send`
+        // and futures capturing A [`Send`] + [`Sync`] function also implements `Send`
         unsafe { SendFuture::new(self.0.call_try_sync(arg)).await }
     }
 }
@@ -313,6 +356,7 @@ new_impls!(async DynAsyncFn, Storage + StorageSend, [for<'a> Fn(Arg::Of<'a>, Pha
 impl_clone!(async DynAsyncFn, Storage + StorageSend);
 impl_debug!(async DynAsyncFn, Storage + StorageSend);
 
+/// [`DynAsyncFnMut`], but without the [`Send`] + [`Sync`] requirement.
 pub struct LocalDynAsyncFnMut<
     'capture,
     Arg: ForLt + 'static,
@@ -381,10 +425,12 @@ impl<
         }
     }
 
+    /// Returns whether the underlying function is synchronous.
     pub fn is_sync(&self) -> bool {
         self.storage.vtable().call_sync.is_some()
     }
 
+    /// Calls the underlying function.
     pub async fn call<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
         let mut future = MaybeUninit::uninit();
         let vtable =
@@ -394,10 +440,21 @@ impl<
         unsafe { poll_future(vtable, &mut future) }.await
     }
 
+    /// Calls the underlying function if is synchronous.
     pub fn call_sync<'a>(&mut self, arg: Arg::Of<'a>) -> Option<Ret::Of<'a>> {
         self.storage.vtable().call_sync?(self.storage.ptr_mut(), arg, PhantomData).into()
     }
 
+    /// Tries calling the underlying function as synchronous, falling back to asynchronous call.
+    ///
+    /// This is equivalent to
+    /// ```ignore
+    /// if self.is_sync() {
+    ///     self.call_sync(arg).unwrap()
+    /// } else {
+    ///     self.call(arg).await
+    /// }
+    /// ```
     pub async fn call_try_sync<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
         if self.is_sync() {
             self.call_sync(arg).unwrap()
@@ -411,6 +468,17 @@ new_impls!(async LocalDynAsyncFnMut, StorageMut, [for<'a> FnMut(Arg::Of<'a>, Pha
 
 impl_debug!(async LocalDynAsyncFnMut, StorageMut);
 
+/// A dynamic [`AsyncFnMut`] stored in `FnStorage`, whose returned future is stored in
+/// `FutureStorage`.
+///
+/// Using [`Raw`](crate::storage::Raw)/[`RawOrBox`](crate::storage::RawOrBox) storage avoids the
+/// need to allocate the returned future, which results in better performance — `RawOrBox` may
+/// fall back to `Box` allocation, but if the returned future is big enough to require it, the
+/// allocation cost may be negligible compared to polling it.
+///
+/// `DynAsyncFnMut` can also be initialized with a synchronous function, in which case
+/// [`call_try_sync`](Self::call_try_sync) offers a lot better performance than
+/// [`call`](Self::call).
 pub struct DynAsyncFnMut<
     'capture,
     Arg: ForLt + 'static,
@@ -460,23 +528,36 @@ impl<
         Self(unsafe { LocalDynAsyncFnMut::new_sync_impl::<F>(storage) })
     }
 
+    /// Returns whether the underlying function is synchronous.
     pub fn is_sync(&self) -> bool {
         self.0.is_sync()
     }
 
+    /// Calls the underlying function.
     pub async fn call<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
         // SAFETY: Future returned by `AsyncFnMutSend` implements `Send`,
-        // and futures capturing a `Send + Sync` function also implements `Send`
+        // and futures capturing A [`Send`] + [`Sync`] function also implements `Send`
         unsafe { SendFuture::new(self.0.call(arg)).await }
     }
 
+    /// Calls the underlying function if is synchronous.
     pub fn call_sync<'a>(&mut self, arg: Arg::Of<'a>) -> Option<Ret::Of<'a>> {
         self.0.call_sync(arg)
     }
 
+    /// Tries calling the underlying function as synchronous, falling back to asynchronous call.
+    ///
+    /// This is equivalent to
+    /// ```ignore
+    /// if self.is_sync() {
+    ///     self.call_sync(arg).unwrap()
+    /// } else {
+    ///     self.call(arg).await
+    /// }
+    /// ```
     pub async fn call_try_sync<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
         // SAFETY: Future returned by `AsyncFnMutSend` implements `Send`,
-        // and futures capturing a `Send + Sync` function also implements `Send`
+        // and futures capturing A [`Send`] + [`Sync`] function also implements `Send`
         unsafe { SendFuture::new(self.0.call_try_sync(arg)).await }
     }
 }
@@ -485,6 +566,7 @@ new_impls!(async DynAsyncFnMut, StorageMut + StorageSend, [for<'a> FnMut(Arg::Of
 
 impl_debug!(async DynAsyncFnMut, StorageMut + StorageSend);
 
+/// [`DynAsyncFnOnce`], but without the [`Send`] + [`Sync`] requirement.
 pub struct LocalDynAsyncFnOnce<
     'capture,
     Arg: ForLt + 'static,
@@ -560,10 +642,12 @@ impl<
         }
     }
 
+    /// Returns whether the underlying function is synchronous.
     pub fn is_sync(&self) -> bool {
         self.storage.vtable().call_sync.is_some()
     }
 
+    /// Calls the underlying function.
     pub async fn call<'a>(self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
         let mut storage = ManuallyDrop::new(self.storage);
         let mut future = MaybeUninit::uninit();
@@ -575,6 +659,7 @@ impl<
         unsafe { poll_future(vtable, &mut future) }.await
     }
 
+    /// Calls the underlying function if is synchronous.
     pub fn call_sync(self, arg: Arg::Of<'_>) -> Option<Ret::Of<'_>> {
         let call_sync = self.storage.vtable().call_sync?;
         let mut storage = ManuallyDrop::new(self.storage);
@@ -583,6 +668,16 @@ impl<
         call_sync(moved_storage, arg, PhantomData).into()
     }
 
+    /// Tries calling the underlying function as synchronous, falling back to asynchronous call.
+    ///
+    /// This is equivalent to
+    /// ```ignore
+    /// if self.is_sync() {
+    ///     self.call_sync(arg).unwrap()
+    /// } else {
+    ///     self.call(arg).await
+    /// }
+    /// ```
     pub async fn call_try_sync<'a>(self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
         if self.is_sync() {
             self.call_sync(arg).unwrap()
@@ -596,6 +691,17 @@ new_impls!(async LocalDynAsyncFnOnce, StorageMut, [for<'a> FnOnce(Arg::Of<'a>, P
 
 impl_debug!(async LocalDynAsyncFnOnce, StorageMut);
 
+/// A dynamic [`AsyncFnOnce`] stored in `FnStorage`, whose returned future is stored in
+/// `FutureStorage`.
+///
+/// Using [`Raw`](crate::storage::Raw)/[`RawOrBox`](crate::storage::RawOrBox) storage avoids the
+/// need to allocate the returned future, which results in better performance — `RawOrBox` may
+/// fall back to `Box` allocation, but if the returned future is big enough to require it, the
+/// allocation cost may be negligible compared to polling it.
+///
+/// `DynAsyncFnOnce` can also be initialized with a synchronous function, in which case
+/// [`call_try_sync`](Self::call_try_sync) offers a lot better performance than
+/// [`call`](Self::call).
 pub struct DynAsyncFnOnce<
     'capture,
     Arg: ForLt + 'static,
@@ -648,23 +754,36 @@ impl<
         Self(unsafe { LocalDynAsyncFnOnce::new_sync_impl::<F>(storage) })
     }
 
+    /// Returns whether the underlying function is synchronous.
     pub fn is_sync(&self) -> bool {
         self.0.is_sync()
     }
 
+    /// Calls the underlying function.
     pub async fn call<'a>(self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
         // SAFETY: Future returned by `AsyncFnOnceSend` implements `Send`,
-        // and futures capturing a `Send + Sync` function also implements `Send`
+        // and futures capturing A [`Send`] + [`Sync`] function also implements `Send`
         unsafe { SendFuture::new(self.0.call(arg)).await }
     }
 
+    /// Calls the underlying function if is synchronous.
     pub fn call_sync(self, arg: Arg::Of<'_>) -> Option<Ret::Of<'_>> {
         self.0.call_sync(arg)
     }
 
+    /// Tries calling the underlying function as synchronous, falling back to asynchronous call.
+    ///
+    /// This is equivalent to
+    /// ```ignore
+    /// if self.is_sync() {
+    ///     self.call_sync(arg).unwrap()
+    /// } else {
+    ///     self.call(arg).await
+    /// }
+    /// ```
     pub async fn call_try_sync<'a>(self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
         // SAFETY: Future returned by `AsyncFnOnceSend` implements `Send`,
-        // and futures capturing a `Send + Sync` function also implements `Send`
+        // and futures capturing A [`Send`] + [`Sync`] function also implements `Send`
         unsafe { SendFuture::new(self.0.call_try_sync(arg)).await }
     }
 }

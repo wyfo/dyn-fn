@@ -1,3 +1,5 @@
+//! The storages available for the dynamic functions/returned futures.
+
 #[cfg(feature = "alloc")]
 use alloc::{boxed::Box as StdBox, rc::Rc as StdRc, sync::Arc as StdArc};
 use core::{
@@ -11,13 +13,19 @@ use core::{
 use elain::{Align, Alignment};
 
 #[cfg(not(feature = "alloc"))]
+/// Default function storage.
 pub type DefaultFnStorage = Raw<{ size_of::<usize>() }>;
 #[cfg(feature = "alloc")]
+/// Default function storage.
 pub type DefaultFnStorage = Box;
+/// Default future storage.
 pub type DefaultFutureStorage = RawOrBox<{ 16 * size_of::<usize>() }>;
 
+/// A storage that can be used to store dynamic type-erased objects.
 pub trait Storage: private::Storage {}
+/// A [`storage`] whose mutable access gives mutable access to the stored object.
 pub trait StorageMut: Storage {}
+/// A storage implementing [`Send`] + [`Sync`] if the stored object implements [`Send`] + [`Sync`].
 pub trait StorageSend: private::StorageSend {}
 
 pub(crate) struct DropVTable {
@@ -151,6 +159,11 @@ impl<S: StorageMut, T> Drop for StorageMoved<S, T> {
     }
 }
 
+/// A raw storage, where object is stored in place.
+///
+/// Object size and alignment must fit, e.g. be lesser or equal to the generic parameter.
+/// This condition is enforced by a constant assertion, which triggers at build time
+/// (it is not triggered by **cargo check**).
 #[derive(Debug)]
 #[repr(C)]
 pub struct Raw<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }>
@@ -204,6 +217,7 @@ impl<const SIZE: usize, const ALIGN: usize> StorageSend for Raw<SIZE, ALIGN> whe
 {
 }
 
+/// A type-erased [`Box`](StdBox).
 #[cfg(feature = "alloc")]
 #[derive(Debug)]
 pub struct Box(NonNull<()>);
@@ -220,6 +234,7 @@ impl StorageMut for Box {}
 #[cfg(feature = "alloc")]
 impl StorageSend for Box {}
 
+/// A type-erased [`Rc`](StdRc).
 #[cfg(feature = "alloc")]
 #[derive(Debug)]
 pub struct Rc(NonNull<()>);
@@ -242,6 +257,7 @@ impl Clone for Rc {
 #[cfg(feature = "alloc")]
 impl Storage for Rc {}
 
+/// A type-erased [`Arc`](StdArc).
 #[cfg(feature = "alloc")]
 #[derive(Debug)]
 pub struct Arc(NonNull<()>);
@@ -267,7 +283,7 @@ impl Storage for Arc {}
 impl StorageSend for Arc {}
 
 #[derive(Debug)]
-pub enum RawOrBoxInner<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }>
+enum RawOrBoxInner<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }>
 where
     Align<ALIGN>: Alignment,
 {
@@ -276,6 +292,7 @@ where
     Box(Box),
 }
 
+/// A [`Raw`] storage with [`Box`] backup if the object doesn't fit in.
 #[derive(Debug)]
 pub struct RawOrBox<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }>(
     RawOrBoxInner<SIZE, ALIGN>,
@@ -288,6 +305,11 @@ impl<const SIZE: usize, const ALIGN: usize> RawOrBox<SIZE, ALIGN>
 where
     Align<ALIGN>: Alignment,
 {
+    #[cfg_attr(coverage_nightly, coverage(off))]
+    pub(crate) const fn new_raw<T>(data: T) -> Self {
+        Self(RawOrBoxInner::Raw(Raw::new(data)))
+    }
+
     #[cfg_attr(coverage_nightly, coverage(off))]
     pub(crate) fn new_box<T>(data: StdBox<T>) -> Self {
         Self(RawOrBoxInner::Box(Box::new_box(data)))

@@ -14,8 +14,8 @@ higher-kinded-types = "0.3.0"
 
 [dev-dependencies]
 async-trait = "0.1"
-futures-util = "0.3"
 divan = "0.1"
+futures-util = "0.3"
 trybuild = "1"
 
 [[bench]]
@@ -40,4 +40,3 @@ unused_unsafe = "forbid"
 dbg_macro = "warn"
 semicolon_if_nothing_returned = "warn"
 undocumented_unsafe_blocks = "deny"
-
