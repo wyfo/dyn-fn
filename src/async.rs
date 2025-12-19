@@ -8,7 +8,7 @@ use core::{
     task::{Context, Poll},
 };
 
-use higher_kinded_types::{ForFixed, ForLt, ForRefMut};
+use higher_kinded_types::{ForFixed, ForLt};
 
 use crate::{
     macros::{impl_clone, impl_debug, new_impls, unsafe_impl_send_sync},
@@ -83,31 +83,26 @@ async unsafe fn poll_future<'a, FutureStorage: StorageMut, Ret: ForLt + 'static>
 }
 
 #[expect(type_alias_bounds)]
-type Call<Arg: ForLt + 'static, Ret: ForLt + 'static, FutureStorage, Ptr: ForLt> =
+type Call<Arg: ForLt, Ret: ForLt + 'static, FutureStorage, T> =
     for<'a> unsafe fn(
-        Ptr::Of<'_>,
+        NonNull<T>,
         Arg::Of<'a>,
         &mut MaybeUninit<FutureStorage>,
         PhantomData<&'a ()>,
     ) -> &'static FutureVTable<Ret>;
 
 #[expect(type_alias_bounds)]
-type CallSync<Arg: ForLt + 'static, Ret: ForLt, Ptr: ForLt> =
-    for<'a, 'b> unsafe fn(Ptr::Of<'_>, Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a>;
+type CallSync<Arg: ForLt, Ret: ForLt, T> =
+    for<'a, 'b> unsafe fn(NonNull<T>, Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a>;
 
-struct AsyncVTable<
-    Arg: ForLt + 'static,
-    Ret: ForLt + 'static,
-    FutureStorage,
-    Ptr: ForLt = ForFixed<NonNull<()>>,
-> {
-    call: Call<Arg, Ret, FutureStorage, Ptr>,
-    call_sync: Option<CallSync<Arg, Ret, Ptr>>,
+struct AsyncVTable<Arg: ForLt, Ret: ForLt + 'static, FutureStorage, T: 'static = ()> {
+    call: Call<Arg, Ret, FutureStorage, T>,
+    call_sync: Option<CallSync<Arg, Ret, T>>,
     drop_vtable: DropVTable,
 }
 
-impl<Arg: ForLt + 'static, Ret: ForLt + 'static, FutureStorage: StorageMut, Ptr: ForLt + 'static>
-    VTable for AsyncVTable<Arg, Ret, FutureStorage, Ptr>
+impl<Arg: ForLt + 'static, Ret: ForLt + 'static, FutureStorage: StorageMut, T: 'static> VTable
+    for AsyncVTable<Arg, Ret, FutureStorage, T>
 {
     fn drop_vtable(&self) -> &DropVTable {
         &self.drop_vtable
@@ -156,7 +151,7 @@ impl<
         storage: FnStorage,
     ) -> Self {
         let vtable = &AsyncVTable {
-            call: |func: NonNull<()>, arg, fut, _| {
+            call: |func, arg, fut, _| {
                 store_future(fut, unsafe { func.cast::<F>().as_ref()(arg, PhantomData) })
             },
             call_sync: None,
@@ -174,14 +169,12 @@ impl<
         storage: FnStorage,
     ) -> Self {
         let vtable = &AsyncVTable {
-            call: |func: NonNull<()>, arg, fut, _| {
+            call: |func, arg, fut, _| {
                 store_future(fut, async move {
                     unsafe { func.cast::<F>().as_ref()(arg, PhantomData) }
                 })
             },
-            call_sync: Some(|func: NonNull<()>, arg, _| unsafe {
-                func.cast::<F>().as_ref()(arg, PhantomData)
-            }),
+            call_sync: Some(|func, arg, _| unsafe { func.cast::<F>().as_ref()(arg, PhantomData) }),
             drop_vtable: const { DropVTable::new::<FnStorage, F>() },
         };
         Self {
@@ -244,7 +237,7 @@ impl<
 {
     const fn new_impl<F: AsyncFnSend<'capture, Arg, Ret>>(storage: FnStorage) -> Self {
         let vtable = &AsyncVTable {
-            call: |func: NonNull<()>, arg, fut, _| {
+            call: |func, arg, fut, _| {
                 store_future(fut, unsafe { func.cast::<F>().as_ref().call(arg) })
             },
             call_sync: None,
@@ -315,7 +308,7 @@ impl<
         storage: FnStorage,
     ) -> Self {
         let vtable = &AsyncVTable {
-            call: |func: NonNull<()>, arg, fut, _| {
+            call: |func, arg, fut, _| {
                 store_future(fut, unsafe { func.cast::<F>().as_mut()(arg, PhantomData) })
             },
             call_sync: None,
@@ -333,14 +326,12 @@ impl<
         storage: FnStorage,
     ) -> Self {
         let vtable = &AsyncVTable {
-            call: |func: NonNull<()>, arg, fut, _| {
+            call: |func, arg, fut, _| {
                 store_future(fut, async move {
                     unsafe { func.cast::<F>().as_mut()(arg, PhantomData) }
                 })
             },
-            call_sync: Some(|func: NonNull<()>, arg, _| unsafe {
-                func.cast::<F>().as_mut()(arg, PhantomData)
-            }),
+            call_sync: Some(|func, arg, _| unsafe { func.cast::<F>().as_mut()(arg, PhantomData) }),
             drop_vtable: const { DropVTable::new::<FnStorage, F>() },
         };
         Self {
@@ -398,7 +389,7 @@ impl<
 {
     const fn new_impl<F: AsyncFnMutSend<'capture, Arg, Ret>>(storage: FnStorage) -> Self {
         let vtable = &AsyncVTable {
-            call: |func: NonNull<()>, arg, fut, _| {
+            call: |func, arg, fut, _| {
                 store_future(fut, unsafe { func.cast::<F>().as_mut().call(arg) })
             },
             call_sync: None,
@@ -450,7 +441,7 @@ pub struct LocalDynAsyncFnOnce<
     FnStorage: StorageMut = DefaultFnStorage,
     FutureStorage: StorageMut = DefaultFutureStorage,
 > {
-    storage: DynStorage<FnStorage, AsyncVTable<Arg, Ret, FutureStorage, ForRefMut<FnStorage>>>,
+    storage: DynStorage<FnStorage, AsyncVTable<Arg, Ret, FutureStorage, FnStorage>>,
     _capture: PhantomData<&'capture ()>,
 }
 

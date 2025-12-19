@@ -132,7 +132,7 @@ note: required because it appears within the type `dyn_fn::storage::Box`
    |
    | pub struct Box(NonNull<()>);
    |            ^^^
-note: required because it appears within the type `storage::DynStorage<dyn_fn::storage::Box, dyn_fn::sync::SyncVTable<dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ mut dyn_fn::storage::Box> + 'static)>>>`
+note: required because it appears within the type `storage::DynStorage<dyn_fn::storage::Box, dyn_fn::sync::SyncVTable<dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box>>`
   --> src/storage.rs
    |
    | pub(crate) struct DynStorage<S: Storage, VT: VTable> {
@@ -162,7 +162,7 @@ note: required because it appears within the type `dyn_fn::storage::Box`
    |
    | pub struct Box(NonNull<()>);
    |            ^^^
-note: required because it appears within the type `storage::DynStorage<dyn_fn::storage::Box, dyn_fn::sync::SyncVTable<dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ mut dyn_fn::storage::Box> + 'static)>>>`
+note: required because it appears within the type `storage::DynStorage<dyn_fn::storage::Box, dyn_fn::sync::SyncVTable<dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::storage::Box>>`
   --> src/storage.rs
    |
    | pub(crate) struct DynStorage<S: Storage, VT: VTable> {
@@ -772,7 +772,7 @@ note: required because it appears within the type `dyn_fn::storage::Box`
    |
    | pub struct Box(NonNull<()>);
    |            ^^^
-note: required because it appears within the type `storage::DynStorage<dyn_fn::storage::Box, dyn_fn::r#async::AsyncVTable<dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, RawOrBox<128, 8>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ mut dyn_fn::storage::Box> + 'static)>>>`
+note: required because it appears within the type `storage::DynStorage<dyn_fn::storage::Box, dyn_fn::r#async::AsyncVTable<dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, RawOrBox<128, 8>, dyn_fn::storage::Box>>`
   --> src/storage.rs
    |
    | pub(crate) struct DynStorage<S: Storage, VT: VTable> {
@@ -802,7 +802,7 @@ note: required because it appears within the type `dyn_fn::storage::Box`
    |
    | pub struct Box(NonNull<()>);
    |            ^^^
-note: required because it appears within the type `storage::DynStorage<dyn_fn::storage::Box, dyn_fn::r#async::AsyncVTable<dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, RawOrBox<128, 8>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ mut dyn_fn::storage::Box> + 'static)>>>`
+note: required because it appears within the type `storage::DynStorage<dyn_fn::storage::Box, dyn_fn::r#async::AsyncVTable<dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, RawOrBox<128, 8>, dyn_fn::storage::Box>>`
   --> src/storage.rs
    |
    | pub(crate) struct DynStorage<S: Storage, VT: VTable> {
@@ -837,7 +837,7 @@ note: required because it appears within the type `dyn_fn::storage::Box`
    |
    | pub struct Box(NonNull<()>);
    |            ^^^
-note: required because it appears within the type `storage::DynStorage<dyn_fn::storage::Box, dyn_fn::r#async::AsyncVTable<dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, RawOrBox<128, 8>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ mut dyn_fn::storage::Box> + 'static)>>>`
+note: required because it appears within the type `storage::DynStorage<dyn_fn::storage::Box, dyn_fn::r#async::AsyncVTable<dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, dyn_fn::higher_kinded_types::ඞ::ForLt<(dyn for<'ඞ> WithLifetime<'ඞ, Of = &'ඞ str> + 'static)>, RawOrBox<128, 8>, dyn_fn::storage::Box>>`
   --> src/storage.rs
    |
    | pub(crate) struct DynStorage<S: Storage, VT: VTable> {

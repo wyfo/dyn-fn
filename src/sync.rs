@@ -1,6 +1,6 @@
 use core::{marker::PhantomData, mem::ManuallyDrop, ptr::NonNull};
 
-use higher_kinded_types::{ForFixed, ForLt, ForRefMut};
+use higher_kinded_types::{ForFixed, ForLt};
 
 use crate::{
     macros::{impl_clone, impl_debug, new_impls, unsafe_impl_send_sync},
@@ -11,17 +11,15 @@ use crate::{
 };
 
 #[expect(type_alias_bounds)]
-type Call<Arg: ForLt, Ret: ForLt, Ptr: ForLt> =
-    for<'a, 'b> unsafe fn(Ptr::Of<'_>, Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a>;
+type Call<Arg: ForLt, Ret: ForLt, T> =
+    for<'a, 'b> unsafe fn(NonNull<T>, Arg::Of<'a>, PhantomData<&'a ()>) -> Ret::Of<'a>;
 
-struct SyncVTable<Arg: ForLt, Ret: ForLt, Ptr: ForLt = ForFixed<NonNull<()>>> {
-    call: Call<Arg, Ret, Ptr>,
+struct SyncVTable<Arg: ForLt, Ret: ForLt, T = ()> {
+    call: Call<Arg, Ret, T>,
     drop_vtable: DropVTable,
 }
 
-impl<Arg: ForLt + 'static, Ret: ForLt + 'static, Ptr: ForLt + 'static> VTable
-    for SyncVTable<Arg, Ret, Ptr>
-{
+impl<Arg: ForLt + 'static, Ret: ForLt + 'static, T: 'static> VTable for SyncVTable<Arg, Ret, T> {
     fn drop_vtable(&self) -> &DropVTable {
         &self.drop_vtable
     }
@@ -44,9 +42,7 @@ impl<'capture, Arg: ForLt + 'static, Ret: ForLt + 'static, FnStorage: Storage>
         storage: FnStorage,
     ) -> Self {
         let vtable = &SyncVTable {
-            call: |func: NonNull<()>, arg, _| unsafe {
-                func.cast::<F>().as_ref()(arg, PhantomData)
-            },
+            call: |func, arg, _| unsafe { func.cast::<F>().as_ref()(arg, PhantomData) },
             drop_vtable: const { DropVTable::new::<FnStorage, F>() },
         };
         Self {
@@ -114,9 +110,7 @@ impl<'capture, Arg: ForLt + 'static, Ret: ForLt + 'static, FnStorage: StorageMut
         storage: FnStorage,
     ) -> Self {
         let vtable = &SyncVTable {
-            call: |func: NonNull<()>, arg, _| unsafe {
-                func.cast::<F>().as_mut()(arg, PhantomData)
-            },
+            call: |func, arg, _| unsafe { func.cast::<F>().as_mut()(arg, PhantomData) },
             drop_vtable: const { DropVTable::new::<FnStorage, F>() },
         };
         Self {
@@ -169,7 +163,7 @@ pub struct LocalDynFnOnce<
     Ret: ForLt + 'static = ForFixed<()>,
     FnStorage: StorageMut = DefaultFnStorage,
 > {
-    storage: DynStorage<FnStorage, SyncVTable<Arg, Ret, ForRefMut<FnStorage>>>,
+    storage: DynStorage<FnStorage, SyncVTable<Arg, Ret, FnStorage>>,
     _capture: PhantomData<&'capture ()>,
 }
 

@@ -85,8 +85,8 @@ impl<S: Storage, VT: VTable> DynStorage<S, VT> {
     /// # Safety
     ///
     /// The returned storage must be used only to instantiate `StorageMoved`.
-    pub(crate) unsafe fn move_storage(this: &mut ManuallyDrop<Self>) -> &mut S {
-        &mut this.storage
+    pub(crate) unsafe fn move_storage(this: &mut ManuallyDrop<Self>) -> NonNull<S> {
+        (&mut this.storage).into()
     }
 
     pub(crate) fn ptr<T>(&self) -> NonNull<T> {
@@ -116,17 +116,17 @@ impl<S: Storage + Clone, VT: VTable> Clone for DynStorage<S, VT> {
     }
 }
 
-pub(crate) struct StorageMoved<'a, S: StorageMut, T> {
-    storage: &'a mut S,
+pub(crate) struct StorageMoved<S: StorageMut, T> {
+    storage: NonNull<S>,
     _phantom: PhantomData<T>,
 }
 
-impl<'a, S: StorageMut, T> StorageMoved<'a, S, T> {
+impl<S: StorageMut, T> StorageMoved<S, T> {
     /// # Safety
     ///
     /// `storage` must have been instantiated with type `T`.
     /// `storage` must neither be accessed, nor dropped, after `StorageMoved` instantiation.
-    pub(crate) unsafe fn new(storage: &'a mut S) -> Self {
+    pub(crate) unsafe fn new(storage: NonNull<S>) -> Self {
         Self {
             storage,
             _phantom: PhantomData,
@@ -138,16 +138,16 @@ impl<'a, S: StorageMut, T> StorageMoved<'a, S, T> {
     /// `read` must be called only once.
     pub(crate) unsafe fn read(&self) -> T {
         // SAFETY: `storage` stores a `T`
-        unsafe { self.storage.ptr().cast().read() }
+        unsafe { self.storage.as_ref().ptr().cast().read() }
     }
 }
 
-impl<S: StorageMut, T> Drop for StorageMoved<'_, S, T> {
+impl<S: StorageMut, T> Drop for StorageMoved<S, T> {
     fn drop(&mut self) {
         // SAFETY: the storage data is no longer accessed after the call,
         // and is matched by the vtable as per function contract, as per
         // `Self::new` contract
-        unsafe { self.storage.drop_in_place(Layout::new::<T>()) }
+        unsafe { self.storage.as_mut().drop_in_place(Layout::new::<T>()) }
     }
 }
 
