@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["storage"],"struct":["DynAsyncFn","DynAsyncFnMut","DynAsyncFnOnce","DynFn","DynFnMut","DynFnOnce","LocalDynAsyncFn","LocalDynAsyncFnMut","LocalDynAsyncFnOnce","LocalDynFn","LocalDynFnMut","LocalDynFnOnce"],"trait":["AsyncFnMutSend","AsyncFnOnceSend","AsyncFnSend"]};

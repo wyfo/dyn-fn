@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["Arc","Box","Raw","RawOrBox","Rc"],"trait":["Storage","StorageMut","StorageSend"],"type":["DefaultFnStorage","DefaultFutureStorage"]};
