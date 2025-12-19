@@ -270,9 +270,9 @@ note: required because it's used within this `async` fn body
    |       pub async fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
    |  ___________________________________________________________________^
    | |         let mut future = MaybeUninit::uninit();
-   | |         let vtable = unsafe {
-   | |             (self.storage.vtable().call)(self.storage.ptr(), arg, &mut future, PhantomData)
-   | |         };
+   | |         let vtable =
+   | |             (self.storage.vtable().call)(self.storage.ptr(), arg, &mut future, PhantomData);
+...  |
    | |         unsafe { poll_future(vtable, &mut future) }.await
    | |     }
    | |_____^
@@ -313,9 +313,9 @@ note: required because it's used within this `async` fn body
    |       pub async fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
    |  ___________________________________________________________________^
    | |         let mut future = MaybeUninit::uninit();
-   | |         let vtable = unsafe {
-   | |             (self.storage.vtable().call)(self.storage.ptr(), arg, &mut future, PhantomData)
-   | |         };
+   | |         let vtable =
+   | |             (self.storage.vtable().call)(self.storage.ptr(), arg, &mut future, PhantomData);
+...  |
    | |         unsafe { poll_future(vtable, &mut future) }.await
    | |     }
    | |_____^
@@ -344,11 +344,11 @@ note: required because it appears within the type `dyn_fn::storage::Box`
    |
    | pub struct Box(NonNull<()>);
    |            ^^^
-note: required because it appears within the type `RawOrBoxInner<128, 8>`
+note: required because it appears within the type `storage::RawOrBoxInner<128, 8>`
   --> src/storage.rs
    |
-   | pub enum RawOrBoxInner<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }>
-   |          ^^^^^^^^^^^^^
+   | enum RawOrBoxInner<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }>
+   |      ^^^^^^^^^^^^^
 note: required because it appears within the type `RawOrBox<128, 8>`
   --> src/storage.rs
    |
@@ -370,9 +370,9 @@ note: required because it's used within this `async` fn body
    |       pub async fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
    |  ___________________________________________________________________^
    | |         let mut future = MaybeUninit::uninit();
-   | |         let vtable = unsafe {
-   | |             (self.storage.vtable().call)(self.storage.ptr(), arg, &mut future, PhantomData)
-   | |         };
+   | |         let vtable =
+   | |             (self.storage.vtable().call)(self.storage.ptr(), arg, &mut future, PhantomData);
+...  |
    | |         unsafe { poll_future(vtable, &mut future) }.await
    | |     }
    | |_____^
@@ -401,16 +401,16 @@ note: required because it appears within the type `PhantomData<*mut ()>`
    |
    | pub struct PhantomData<T: PointeeSized>;
    |            ^^^^^^^^^^^
-note: required because it appears within the type `dyn_fn::storage::Raw<128, 8>`
+note: required because it appears within the type `Raw<128, 8>`
   --> src/storage.rs
    |
    | pub struct Raw<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }>
    |            ^^^
-note: required because it appears within the type `RawOrBoxInner<128, 8>`
+note: required because it appears within the type `storage::RawOrBoxInner<128, 8>`
   --> src/storage.rs
    |
-   | pub enum RawOrBoxInner<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }>
-   |          ^^^^^^^^^^^^^
+   | enum RawOrBoxInner<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }>
+   |      ^^^^^^^^^^^^^
 note: required because it appears within the type `RawOrBox<128, 8>`
   --> src/storage.rs
    |
@@ -432,9 +432,9 @@ note: required because it's used within this `async` fn body
    |       pub async fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
    |  ___________________________________________________________________^
    | |         let mut future = MaybeUninit::uninit();
-   | |         let vtable = unsafe {
-   | |             (self.storage.vtable().call)(self.storage.ptr(), arg, &mut future, PhantomData)
-   | |         };
+   | |         let vtable =
+   | |             (self.storage.vtable().call)(self.storage.ptr(), arg, &mut future, PhantomData);
+...  |
    | |         unsafe { poll_future(vtable, &mut future) }.await
    | |     }
    | |_____^
@@ -482,9 +482,9 @@ note: required because it's used within this `async` fn body
    |       pub async fn call<'a>(&self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
    |  ___________________________________________________________________^
    | |         let mut future = MaybeUninit::uninit();
-   | |         let vtable = unsafe {
-   | |             (self.storage.vtable().call)(self.storage.ptr(), arg, &mut future, PhantomData)
-   | |         };
+   | |         let vtable =
+   | |             (self.storage.vtable().call)(self.storage.ptr(), arg, &mut future, PhantomData);
+...  |
    | |         unsafe { poll_future(vtable, &mut future) }.await
    | |     }
    | |_____^
@@ -586,9 +586,9 @@ note: required because it's used within this `async` fn body
    |       pub async fn call<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
    |  _______________________________________________________________________^
    | |         let mut future = MaybeUninit::uninit();
-   | |         let vtable = unsafe {
-   | |             (self.storage.vtable().call)(self.storage.ptr_mut(), arg, &mut future, PhantomData)
-   | |         };
+   | |         let vtable =
+   | |             (self.storage.vtable().call)(self.storage.ptr_mut(), arg, &mut future, PhantomData);
+...  |
    | |         unsafe { poll_future(vtable, &mut future) }.await
    | |     }
    | |_____^
@@ -634,9 +634,9 @@ note: required because it's used within this `async` fn body
    |       pub async fn call<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
    |  _______________________________________________________________________^
    | |         let mut future = MaybeUninit::uninit();
-   | |         let vtable = unsafe {
-   | |             (self.storage.vtable().call)(self.storage.ptr_mut(), arg, &mut future, PhantomData)
-   | |         };
+   | |         let vtable =
+   | |             (self.storage.vtable().call)(self.storage.ptr_mut(), arg, &mut future, PhantomData);
+...  |
    | |         unsafe { poll_future(vtable, &mut future) }.await
    | |     }
    | |_____^
@@ -665,16 +665,16 @@ note: required because it appears within the type `PhantomData<*mut ()>`
    |
    | pub struct PhantomData<T: PointeeSized>;
    |            ^^^^^^^^^^^
-note: required because it appears within the type `dyn_fn::storage::Raw<128, 8>`
+note: required because it appears within the type `Raw<128, 8>`
   --> src/storage.rs
    |
    | pub struct Raw<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }>
    |            ^^^
-note: required because it appears within the type `RawOrBoxInner<128, 8>`
+note: required because it appears within the type `storage::RawOrBoxInner<128, 8>`
   --> src/storage.rs
    |
-   | pub enum RawOrBoxInner<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }>
-   |          ^^^^^^^^^^^^^
+   | enum RawOrBoxInner<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }>
+   |      ^^^^^^^^^^^^^
 note: required because it appears within the type `RawOrBox<128, 8>`
   --> src/storage.rs
    |
@@ -696,9 +696,9 @@ note: required because it's used within this `async` fn body
    |       pub async fn call<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
    |  _______________________________________________________________________^
    | |         let mut future = MaybeUninit::uninit();
-   | |         let vtable = unsafe {
-   | |             (self.storage.vtable().call)(self.storage.ptr_mut(), arg, &mut future, PhantomData)
-   | |         };
+   | |         let vtable =
+   | |             (self.storage.vtable().call)(self.storage.ptr_mut(), arg, &mut future, PhantomData);
+...  |
    | |         unsafe { poll_future(vtable, &mut future) }.await
    | |     }
    | |_____^
@@ -746,9 +746,9 @@ note: required because it's used within this `async` fn body
    |       pub async fn call<'a>(&mut self, arg: Arg::Of<'a>) -> Ret::Of<'a> {
    |  _______________________________________________________________________^
    | |         let mut future = MaybeUninit::uninit();
-   | |         let vtable = unsafe {
-   | |             (self.storage.vtable().call)(self.storage.ptr_mut(), arg, &mut future, PhantomData)
-   | |         };
+   | |         let vtable =
+   | |             (self.storage.vtable().call)(self.storage.ptr_mut(), arg, &mut future, PhantomData);
+...  |
    | |         unsafe { poll_future(vtable, &mut future) }.await
    | |     }
    | |_____^
@@ -854,7 +854,6 @@ note: required because it's used within this `async` fn body
    |  __________________________________________________________________^
    | |         let mut storage = ManuallyDrop::new(self.storage);
    | |         let mut future = MaybeUninit::uninit();
-   | |         let vtable = unsafe {
 ...  |
    | |         unsafe { poll_future(vtable, &mut future) }.await
    | |     }
@@ -898,7 +897,6 @@ note: required because it's used within this `async` fn body
    |  __________________________________________________________________^
    | |         let mut storage = ManuallyDrop::new(self.storage);
    | |         let mut future = MaybeUninit::uninit();
-   | |         let vtable = unsafe {
 ...  |
    | |         unsafe { poll_future(vtable, &mut future) }.await
    | |     }
@@ -928,16 +926,16 @@ note: required because it appears within the type `PhantomData<*mut ()>`
    |
    | pub struct PhantomData<T: PointeeSized>;
    |            ^^^^^^^^^^^
-note: required because it appears within the type `dyn_fn::storage::Raw<128, 8>`
+note: required because it appears within the type `Raw<128, 8>`
   --> src/storage.rs
    |
    | pub struct Raw<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }>
    |            ^^^
-note: required because it appears within the type `RawOrBoxInner<128, 8>`
+note: required because it appears within the type `storage::RawOrBoxInner<128, 8>`
   --> src/storage.rs
    |
-   | pub enum RawOrBoxInner<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }>
-   |          ^^^^^^^^^^^^^
+   | enum RawOrBoxInner<const SIZE: usize, const ALIGN: usize = { align_of::<usize>() }>
+   |      ^^^^^^^^^^^^^
 note: required because it appears within the type `RawOrBox<128, 8>`
   --> src/storage.rs
    |
@@ -960,7 +958,6 @@ note: required because it's used within this `async` fn body
    |  __________________________________________________________________^
    | |         let mut storage = ManuallyDrop::new(self.storage);
    | |         let mut future = MaybeUninit::uninit();
-   | |         let vtable = unsafe {
 ...  |
    | |         unsafe { poll_future(vtable, &mut future) }.await
    | |     }
@@ -1010,7 +1007,6 @@ note: required because it's used within this `async` fn body
    |  __________________________________________________________________^
    | |         let mut storage = ManuallyDrop::new(self.storage);
    | |         let mut future = MaybeUninit::uninit();
-   | |         let vtable = unsafe {
 ...  |
    | |         unsafe { poll_future(vtable, &mut future) }.await
    | |     }
