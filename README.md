@@ -61,7 +61,7 @@ This crate uses unsafe code extensively. It is entirely checked with [miri] to u
 
 The current way to have dynamic asynchronous function is to use [`async_trait`] crate, but it means to box every returned future. But boxing has a cost that may not be negligible when it comes to small future, like sending a value into a channel.
 
-On the other hand, `DynAsyncFn` uses `RawOrBox` storage by default, so only big futures get allocated, while small future can be written directly on the stack — when the future maximum size is known, using `Raw` storage directly is even more performant. Moreover, this crate provides an optimized execution path for synchronous function wrapped in `DynAsyncFn`.
+On the other hand, `DynAsyncFn` uses `RawOrBox` storage by default, so only big futures get allocated, while small future can be written directly on the stack — when the future maximum size is known, using `Raw` storage directly is even more performant. Moreover, this crate provides an optimized execution path for synchronous function (e.g. pushing into a ringbuffer channel) wrapped in `DynAsyncFn`.
 
 Here are the crude results of a micro-benchmark comparing `dyn_fn` with [`async_trait`], and testing the different optimizations of `dyn_fn`:
 
@@ -77,6 +77,10 @@ async_trait                      fastest       │ slowest       │ median     
 ├─ dyn_async_fn_try_manual       3.997 ns      │ 19.17 ns      │ 4.485 ns      │ 4.564 ns      │ 163646  │ 167573504
 ╰─ dyn_async_trait               14.53 ns      │ 276.4 ns      │ 15.83 ns      │ 15.8 ns       │ 225942  │ 57841152
 ```
+
+## Next steps
+
+The implementation of this crate is in fact quite generalizable to all traits. The `storage` module should be extracted into its own `dyn_storage` crate, with a proc-macro to generate a custom `DynStorage` from a trait.
 
 [`higher_kinded_types`]: https://docs.rs/higher-kinded-types/0.3.0/higher_kinded_types/
 [current limitation]: https://github.com/rust-lang/rust/issues/77905
